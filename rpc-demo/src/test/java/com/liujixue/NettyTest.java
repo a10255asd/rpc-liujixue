@@ -11,7 +11,6 @@ import org.junit.Test;
  * @PackageName:com.liujixue
  * @ClassName: NettyTest
  * @Description: netty 测试类
- * @Version 1.0
  */
 public class NettyTest {
     @Test
@@ -28,5 +27,11 @@ public class NettyTest {
         byte[] buf2 = new byte[1024];
         // 共享byte数组的内容而不是拷贝，这也算零拷贝
         ByteBuf byteBuf = Unpooled.wrappedBuffer(buf, buf2);
+    }
+    @Test
+    public void testSlice(){
+        byte[] buf = new byte[1024];
+        byte[] buf2 = new byte[1024];
+        // 共享byte数组的内容，而不是拷贝，这也算是零拷贝
     }
 }
