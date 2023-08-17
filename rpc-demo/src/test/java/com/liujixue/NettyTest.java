@@ -5,6 +5,8 @@ import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
 import org.junit.Test;
 
+import java.nio.charset.StandardCharsets;
+
 /**
  * @Author: LiuJixue
  * @Date: 2023/8/16 14:50
@@ -33,5 +35,14 @@ public class NettyTest {
         byte[] buf = new byte[1024];
         byte[] buf2 = new byte[1024];
         // 共享byte数组的内容，而不是拷贝，这也算是零拷贝
+    }
+
+    public void testMessage(){
+        ByteBuf message = Unpooled.buffer();
+        message.writeBytes("liujixue".getBytes(StandardCharsets.UTF_8));
+        message.writeByte(1);
+        message.writeShort(125);
+        message.writeInt(256);
+
     }
 }
