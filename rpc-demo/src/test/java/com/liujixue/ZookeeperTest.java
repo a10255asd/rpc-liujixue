@@ -1,16 +1,14 @@
 package com.liujixue;
 
 import com.liujixue.netty.MyWatcherTest;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.ZooDefs;
-import org.apache.zookeeper.ZooKeeper;
+import org.apache.zookeeper.*;
 import org.apache.zookeeper.data.Stat;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.CountDownLatch;
 
 /**
  * @Author LiuJixue
@@ -21,15 +19,25 @@ import java.nio.charset.StandardCharsets;
  */
 public class ZookeeperTest {
     ZooKeeper zooKeeper;
+
+    CountDownLatch countDownLatch = new CountDownLatch(1);
     @Before
     public void CreateZk(){
         // 定义连接参数
-        String connetString = "101.42.50.241:2881";
+        String connetString = "101.42.50.241:2181,101.42.50.241:2182,101.42.50.241:2183";
         // 定义超时时间
         int timeOut = 1000000;
         try {
             // new MyWatcher() 默认的监听器
-            zooKeeper = new ZooKeeper(connetString,timeOut,new MyWatcherTest());
+            // 创建一个zookeeper实例，是否需要等待时间
+            // 创建zookeeper是否需要等待连接
+            zooKeeper = new ZooKeeper(connetString,timeOut,event->{
+                // 只有连接成功才放行
+                if(event.getState() == Watcher.Event.KeeperState.SyncConnected ){
+                    System.out.println("客户端连接成功！");
+                    countDownLatch.countDown();
+                }
+            });
         } catch (IOException e) {
             throw new RuntimeException(e);
         };
@@ -37,6 +45,8 @@ public class ZookeeperTest {
     @Test
     public void testCreatePNode(){
         try {
+            // 等待连接成功
+            countDownLatch.await();
             String s = zooKeeper.create("/liujixueTest01", "hello".getBytes(StandardCharsets.UTF_8)
                     , ZooDefs.Ids.OPEN_ACL_UNSAFE
                     , CreateMode.PERSISTENT);
