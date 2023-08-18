@@ -4,6 +4,7 @@ target/
 !**/src/test/**/target/
 
 ### IntelliJ IDEA ###
+.idea
 .idea/modules.xml
 .idea/jarRepositories.xml
 .idea/compiler.xml
@@ -36,3 +37,14 @@ build/
 
 ### Mac OS ###
 .DS_Store
+
+/target
+/out
+# 编译文件
+*.class
+# 包文件
+*.jar
+*.war
+*.zip
+*.tar.gz
+*.rar
