@@ -76,8 +76,9 @@
             <dependency>
                 <groupId>org.projectlombok</groupId>
                 <artifactId>lombok</artifactId>
-                <version>${logback.version}</version>
+                <version>${lombok.version}</version>
             </dependency>
+
         </dependencies>
     </dependencyManagement>
 </project>

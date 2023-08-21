@@ -19,7 +19,6 @@ import java.util.concurrent.CountDownLatch;
  */
 public class ZookeeperTest {
     ZooKeeper zooKeeper;
-
     CountDownLatch countDownLatch = new CountDownLatch(1);
     @Before
     public void CreateZk(){
