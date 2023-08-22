@@ -2,11 +2,11 @@ package com.liujixue.utils.zookeeper;
 
 import com.liujixue.Constant;
 import com.liujixue.exceptions.ZookeeperException;
-import com.liujixue.utils.zookeeper.ZookeeperNode;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.zookeeper.*;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 
 /**
@@ -36,7 +36,7 @@ public class ZookeeperUtils {
             final ZooKeeper zooKeeper = new ZooKeeper(connetString, timeOut, event -> {
                 // 只有连接成功才放
                 if (event.getState() == Watcher.Event.KeeperState.SyncConnected) {
-                    System.out.println("客户端连接成功！");
+                    log.info("客户端连接成功！");
                     countDownLatch.countDown();
                 }
             });
@@ -106,5 +106,23 @@ public class ZookeeperUtils {
             log.error("判断节点是否存在发生异常：【{}】，节点【{}】",e,node);
             throw new ZookeeperException(e);
         }
+    }
+
+    /**
+     * 查询一个节点的子元素
+     *
+     * @param zooKeeper   zk实例
+     * @param serviceNode 服务节点
+     * @return 子元素列表
+     */
+    public static List<String> getChildren(ZooKeeper zooKeeper, String serviceNode, Watcher watcher) {
+        try {
+            return zooKeeper.getChildren(serviceNode, watcher);
+        } catch (KeeperException | InterruptedException e) {
+            log.error("获取节点【{}】的子元素时发生异常，【{}】",serviceNode,e);
+            throw new ZookeeperException(e);
+        }
+
+
     }
 }

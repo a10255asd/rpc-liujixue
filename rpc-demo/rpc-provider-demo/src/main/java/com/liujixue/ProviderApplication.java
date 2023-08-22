@@ -1,5 +1,6 @@
 package com.liujixue;
 
+import com.liujixue.discovery.RegistryConfig;
 import com.liujixue.impl.HelloRpcImpl;
 
 /**
@@ -9,7 +10,7 @@ import com.liujixue.impl.HelloRpcImpl;
  * @ClassName: Application
  * @Description: TODO
  */
-public class Application {
+public class ProviderApplication {
     public static void main(String[] args) {
         // 服务提供方，需要注册服务，启动服务
         // 1. 封装要发布的服务

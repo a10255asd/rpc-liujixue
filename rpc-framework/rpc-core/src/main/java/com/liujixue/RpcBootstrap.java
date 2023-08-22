@@ -1,15 +1,21 @@
 package com.liujixue;
 
-import com.liujixue.utils.NetUtils;
-import com.liujixue.utils.zookeeper.ZookeeperUtils;
-import com.liujixue.utils.zookeeper.ZookeeperNode;
+import com.liujixue.discovery.Registry;
+import com.liujixue.discovery.RegistryConfig;
+import io.netty.bootstrap.ServerBootstrap;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.SocketChannel;
+import io.netty.channel.socket.nio.NioServerSocketChannel;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.ZooKeeper;
 
+import java.net.InetSocketAddress;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
-import static com.liujixue.Constant.BASE_PROVIDERS_PATH;
 
 /**
  * @Author LiuJixue
@@ -26,21 +32,25 @@ public class RpcBootstrap {
     private String appName = "default";
     private RegistryConfig registryConfig;
     private ProtocolConfig protocolConfig;
-    private int port =8088;
-    // 维护一个zookeeper实例
-    private ZooKeeper zooKeeper;
-
+    // 端口
+    private int port = 8088;
+    // 注册中心
+    private Registry registry;
+    // 连接的缓存，使用InetSocketAddress做key一定要看有没有重写equals和toString
+    public final static Map<InetSocketAddress, Channel> CHANNEL_CACHE = new ConcurrentHashMap<>(16);
+    // 维护已经发布且暴露的服务列表，映射关系：key--> interface的全限定名称，value--->serviceConfig
+    private static final Map<String,ServiceConfig<?>> SERVICES_LIST = new ConcurrentHashMap<>();
     // 私有化构造器
     public RpcBootstrap() {
         // 构造启动引导程序时,需要做一些初始化的事
+    }
+    public static RpcBootstrap getInstance() {
+        return rpcBootstrap;
     }
 
     /**
      * ----------------------- 服务提供方的相关api----------------------
      */
-    public static RpcBootstrap getInstance() {
-        return rpcBootstrap;
-    }
 
     /**
      * 用来定义当前应用的名字
@@ -51,22 +61,15 @@ public class RpcBootstrap {
         this.appName = appName;
         return this;
     }
-
     /**
      * 用来配置一个注册中心
-     *
-     * @return this当前实例
+     * @return this 当前实例
      */
     public RpcBootstrap registry(RegistryConfig registryConfig) {
-        // TODO 这里维护一个 zookeeper 实例，如果这样写就会将zookeeper和当前工程耦合，我们希望以后可以扩展更多不同的实现
-        zooKeeper = ZookeeperUtils.createZookeeper();
-        this.registryConfig = registryConfig;
+        // 尝试使用获取一个注册中心，类似于工厂设计模式
+        this.registry = registryConfig.getRegistry();
         return this;
     }
-
-//    public RpcBootstrap registry(Registry registry) {
-//    }
-
     /**
      * 配置当前暴露的服务使用的协议
      *
@@ -88,32 +91,26 @@ public class RpcBootstrap {
      * @return this当前实例
      */
     public RpcBootstrap publish(ServiceConfig<?> service) {
-        // 服务名称的节点，为持久节点
-        String parentNode = BASE_PROVIDERS_PATH + "/" +  service.getInterface().getName();
-        if(!ZookeeperUtils.exists(parentNode,zooKeeper,null)){
-            ZookeeperNode zookeeperNode = new ZookeeperNode(parentNode,null);
-            ZookeeperUtils.createNode(zooKeeper, zookeeperNode, null, CreateMode.PERSISTENT);
-        }
-        // 创建本机的临时节点，ip:port 服务提供方的端口一般自己设定，我们还需要一个获取ip的方法
-        // ip通常需要一个局域网ip，不是127.0.0.1，也不是ipv6
-        String node = parentNode +  "/" + NetUtils.getIp() + ":" + port;
-        if(!ZookeeperUtils.exists(node,zooKeeper,null)){
-            ZookeeperNode zookeeperNode = new ZookeeperNode(node,null);
-            ZookeeperUtils.createNode(zooKeeper, zookeeperNode, null, CreateMode.EPHEMERAL);
-        }
-        if (log.isDebugEnabled()) {
-            log.debug("服务:【{}】,已经被注册",service.getInterface().getName());
-        }
+        // 抽象注册中心，使用注册中心的一个实现完成注册
+        registry.register(service);
+        // 1. 服务调用方通过接口方法名，以及具体的方法参数列表发起调用，提供方怎么知道使用哪一个实现
+        // 方式一：new()
+        // 方式二：spring beanFactory.getBean(Class)
+        // 方式三：尝试自己维护映射关系
+        SERVICES_LIST.put(service.getInterface().getName(),service);
         return this;
     }
 
     /**
      * 批量发布
      *
-     * @param list 独立封装需要的发布的服务
+     * @param services 独立封装需要的发布的服务
      * @return this当前实例
      */
-    public RpcBootstrap publish(List<?> list) {
+    public RpcBootstrap publish(List<ServiceConfig<?>> services) {
+        for (ServiceConfig<?> service: services) {
+            this.publish(service);
+        }
         return this;
     }
 
@@ -121,10 +118,36 @@ public class RpcBootstrap {
      * 启动 netty 服务
      */
     public void start() {
+        //1. 创建 EventLoopGroup
+        // boss 只负责处理请求，之后会将请求分发给worker
+        NioEventLoopGroup boss = new NioEventLoopGroup(2);
+        NioEventLoopGroup worker = new NioEventLoopGroup(10);
         try {
-            Thread.sleep(10000);
+            //2. 需要一个服务器引导程序
+            ServerBootstrap serverBootstrap = new ServerBootstrap();
+            // 3. 配置服务器
+            serverBootstrap
+                    .channel(NioServerSocketChannel.class)
+                    .group(boss,worker)
+                    .childHandler(new ChannelInitializer<SocketChannel>() {
+                        @Override
+                        protected void initChannel(SocketChannel socketChannel) throws Exception {
+                            // 核心，我们需要添加许多入栈和出栈服务
+                            socketChannel.pipeline().addLast(null);
+                        }
+                    });
+            // 4. 绑定端口
+            ChannelFuture channelFuture = serverBootstrap.bind(port);
+            channelFuture.channel().closeFuture().sync();
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
+        }finally {
+            try {
+                boss.shutdownGracefully().sync();
+                worker.shutdownGracefully().sync();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -135,6 +158,8 @@ public class RpcBootstrap {
     public RpcBootstrap reference(ReferenceConfig<?> reference) {
         // 在方法里是是否可以拿到相关的配置项：注册中心
         // 配置reference，将来调用get方法时，方便生成代理对象
+        // 1. reference 需要一个注册中心
+        reference.setRegistry(registry);
         return this;
     }
 }

@@ -13,6 +13,6 @@ public class Constant {
     // zookeeper默认连接超时事件
     public static final int TIME_OUT = 10000;
     // 服务提供方和调用方在注册中心的基础路径
-    public static final String BASE_PROVIDERS_PATH = "/rpc-metadata-provider";
-    public static final String BASE_CONSUMERS_PATH = "/rpc-metadata-consumers";
+    public static final String BASE_PROVIDERS_PATH = "/rpc-metadata/providers";
+    public static final String BASE_CONSUMERS_PATH = "/rpc-metadata/consumers";
 }

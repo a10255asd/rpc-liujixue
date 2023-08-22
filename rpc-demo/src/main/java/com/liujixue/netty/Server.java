@@ -41,7 +41,6 @@ public class Server {
                 });
         // 4. 绑定端口
         ChannelFuture channelFuture = serverBootstrap.bind(port);
-
             channelFuture.channel().closeFuture().sync();
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
