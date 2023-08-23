@@ -3,17 +3,19 @@ package com.liujixue;
 import com.liujixue.discovery.Registry;
 import com.liujixue.discovery.RegistryConfig;
 import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelInitializer;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.InetSocketAddress;
+import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 
@@ -39,7 +41,9 @@ public class RpcBootstrap {
     // 连接的缓存，使用InetSocketAddress做key一定要看有没有重写equals和toString
     public final static Map<InetSocketAddress, Channel> CHANNEL_CACHE = new ConcurrentHashMap<>(16);
     // 维护已经发布且暴露的服务列表，映射关系：key--> interface的全限定名称，value--->serviceConfig
-    private static final Map<String,ServiceConfig<?>> SERVICES_LIST = new ConcurrentHashMap<>();
+    private static final Map<String,ServiceConfig<?>> SERVICES_LIST = new ConcurrentHashMap<>(16);
+    // 定义全局的对外挂起的 CompletableFuture
+    public final static Map<Long, CompletableFuture<Object>> PADDING_REQUEST = new ConcurrentHashMap<>(8);
     // 私有化构造器
     public RpcBootstrap() {
         // 构造启动引导程序时,需要做一些初始化的事
@@ -133,7 +137,15 @@ public class RpcBootstrap {
                         @Override
                         protected void initChannel(SocketChannel socketChannel) throws Exception {
                             // 核心，我们需要添加许多入栈和出栈服务
-                            socketChannel.pipeline().addLast(null);
+                            socketChannel.pipeline().addLast(new SimpleChannelInboundHandler<>() {
+                                @Override
+                                protected void channelRead0(ChannelHandlerContext channelHandlerContext, Object msg){
+                                    ByteBuf byteBuf = (ByteBuf) msg;
+                                    log.info("byteBuf----->{}",byteBuf.toString(Charset.defaultCharset()));
+                                    // 可以就此不管了，也可以写回去
+                                    channelHandlerContext.channel().writeAndFlush(Unpooled.copiedBuffer("rpc--provider-hello".getBytes()));
+                                }
+                            });
                         }
                     });
             // 4. 绑定端口

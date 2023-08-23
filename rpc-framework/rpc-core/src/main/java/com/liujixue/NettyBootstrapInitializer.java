@@ -1,11 +1,13 @@
 package com.liujixue;
 
-import com.liujixue.RpcBootstrap;
+import com.liujixue.channelHandler.ConsumerChannelInitializer;
+import com.liujixue.channelHandler.handler.MySimpleChannelInboundHandler;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * @Author LiuJixue
@@ -14,6 +16,7 @@ import io.netty.channel.socket.nio.NioSocketChannel;
  * @ClassName: NettyBootstrapInitializer
  * @Descriptio 提供 BootStrap 单例
  */
+@Slf4j
 public class NettyBootstrapInitializer {
     private static final Bootstrap bootstrap = new Bootstrap();
 
@@ -26,12 +29,7 @@ public class NettyBootstrapInitializer {
                 // 定义线程池，EventLoopGroup
                 .group(nioEventLoopGroup)
                 // 选择初始化一个什么样的channel
-                .channel(NioSocketChannel.class).handler(new ChannelInitializer<SocketChannel>() {
-                    @Override
-                    protected void initChannel(SocketChannel socketChannel) {
-                        socketChannel.pipeline().addLast(null);
-                    }
-                });
+                .channel(NioSocketChannel.class).handler(new ConsumerChannelInitializer());
     }
     public static Bootstrap getBootstrap() {
         return bootstrap;

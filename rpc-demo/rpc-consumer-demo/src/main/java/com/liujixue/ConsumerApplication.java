@@ -1,6 +1,7 @@
 package com.liujixue;
 
 import com.liujixue.discovery.RegistryConfig;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * @Author LiuJixue
@@ -8,6 +9,7 @@ import com.liujixue.discovery.RegistryConfig;
  * @PackageName:com.liujixue
  * @ClassName: Application
  */
+@Slf4j
 public class ConsumerApplication {
     public static void main(String[] args) {
         // 想尽一切办法获取代理对象, 使用 ReferenceConfig 进行封装
@@ -21,6 +23,7 @@ public class ConsumerApplication {
                 .reference(reference);
         // 获取一个代理对象
         HelloRpc helloRpc = reference.get();
-        helloRpc.sayHi("你好");
+        String sayHi = helloRpc.sayHi("你好");
+        log.info("sayHi------->{}",sayHi);
     }
 }
