@@ -1,5 +1,8 @@
 package com.liujixue;
 
+import com.liujixue.channelHandler.handler.MethodCallHandler;
+import com.liujixue.channelHandler.handler.RpcMessageDecoder;
+import com.liujixue.channelHandler.handler.RpcMessageEncoder;
 import com.liujixue.discovery.Registry;
 import com.liujixue.discovery.RegistryConfig;
 import io.netty.bootstrap.ServerBootstrap;
@@ -9,6 +12,7 @@ import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.handler.logging.LoggingHandler;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.InetSocketAddress;
@@ -41,13 +45,15 @@ public class RpcBootstrap {
     // 连接的缓存，使用InetSocketAddress做key一定要看有没有重写equals和toString
     public final static Map<InetSocketAddress, Channel> CHANNEL_CACHE = new ConcurrentHashMap<>(16);
     // 维护已经发布且暴露的服务列表，映射关系：key--> interface的全限定名称，value--->serviceConfig
-    private static final Map<String,ServiceConfig<?>> SERVICES_LIST = new ConcurrentHashMap<>(16);
+    public static final Map<String, ServiceConfig<?>> SERVICES_LIST = new ConcurrentHashMap<>(16);
     // 定义全局的对外挂起的 CompletableFuture
     public final static Map<Long, CompletableFuture<Object>> PADDING_REQUEST = new ConcurrentHashMap<>(8);
+
     // 私有化构造器
     public RpcBootstrap() {
         // 构造启动引导程序时,需要做一些初始化的事
     }
+
     public static RpcBootstrap getInstance() {
         return rpcBootstrap;
     }
@@ -65,8 +71,10 @@ public class RpcBootstrap {
         this.appName = appName;
         return this;
     }
+
     /**
      * 用来配置一个注册中心
+     *
      * @return this 当前实例
      */
     public RpcBootstrap registry(RegistryConfig registryConfig) {
@@ -74,6 +82,7 @@ public class RpcBootstrap {
         this.registry = registryConfig.getRegistry();
         return this;
     }
+
     /**
      * 配置当前暴露的服务使用的协议
      *
@@ -83,7 +92,7 @@ public class RpcBootstrap {
     public RpcBootstrap protocol(ProtocolConfig protocolConfig) {
         this.protocolConfig = protocolConfig;
         if (log.isDebugEnabled()) {
-            log.debug("当前工程使用了：【{}】,进行序列化",protocolConfig.toString());
+            log.debug("当前工程使用了：【{}】,进行序列化", protocolConfig.toString());
         }
         return this;
     }
@@ -101,7 +110,7 @@ public class RpcBootstrap {
         // 方式一：new()
         // 方式二：spring beanFactory.getBean(Class)
         // 方式三：尝试自己维护映射关系
-        SERVICES_LIST.put(service.getInterface().getName(),service);
+        SERVICES_LIST.put(service.getInterface().getName(), service);
         return this;
     }
 
@@ -112,7 +121,7 @@ public class RpcBootstrap {
      * @return this当前实例
      */
     public RpcBootstrap publish(List<ServiceConfig<?>> services) {
-        for (ServiceConfig<?> service: services) {
+        for (ServiceConfig<?> service : services) {
             this.publish(service);
         }
         return this;
@@ -132,20 +141,15 @@ public class RpcBootstrap {
             // 3. 配置服务器
             serverBootstrap
                     .channel(NioServerSocketChannel.class)
-                    .group(boss,worker)
+                    .group(boss, worker)
                     .childHandler(new ChannelInitializer<SocketChannel>() {
                         @Override
                         protected void initChannel(SocketChannel socketChannel) throws Exception {
-                            // 核心，我们需要添加许多入栈和出栈服务
-                            socketChannel.pipeline().addLast(new SimpleChannelInboundHandler<>() {
-                                @Override
-                                protected void channelRead0(ChannelHandlerContext channelHandlerContext, Object msg){
-                                    ByteBuf byteBuf = (ByteBuf) msg;
-                                    log.info("byteBuf----->{}",byteBuf.toString(Charset.defaultCharset()));
-                                    // 可以就此不管了，也可以写回去
-                                    channelHandlerContext.channel().writeAndFlush(Unpooled.copiedBuffer("rpc--provider-hello".getBytes()));
-                                }
-                            });
+                            socketChannel.pipeline()
+                                    .addLast(new LoggingHandler())
+                                    .addLast(new RpcMessageDecoder())
+                                    // 根据请求进行方法调用
+                                    .addLast(new MethodCallHandler());
                         }
                     });
             // 4. 绑定端口
@@ -153,7 +157,7 @@ public class RpcBootstrap {
             channelFuture.channel().closeFuture().sync();
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
-        }finally {
+        } finally {
             try {
                 boss.shutdownGracefully().sync();
                 worker.shutdownGracefully().sync();

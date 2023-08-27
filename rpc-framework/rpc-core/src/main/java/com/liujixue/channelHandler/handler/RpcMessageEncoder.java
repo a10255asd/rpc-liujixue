@@ -1,5 +1,6 @@
 package com.liujixue.channelHandler.handler;
 
+import com.liujixue.enumeration.RequestType;
 import com.liujixue.transport.message.MessageFormatConstant;
 import com.liujixue.transport.message.RequestPayload;
 import com.liujixue.transport.message.RpcRequest;
@@ -40,8 +41,8 @@ public class RpcMessageEncoder extends MessageToByteEncoder<RpcRequest> implemen
         byteBuf.writeByte(MessageFormatConstant.VERSION);
         // 2个字节的 header 长度
         byteBuf.writeShort(MessageFormatConstant.HEADER_LENGTH);
-        // TODO 总长度不清楚，因为不知道body的长度。writerIndex() 控制写指针
-        byteBuf.writerIndex(byteBuf.writerIndex() + 4);
+
+        byteBuf.writerIndex(byteBuf.writerIndex() + MessageFormatConstant.FULL_FIELD_LENGTH);
         // 三个类型
         byteBuf.writeByte(rpcRequest.getRequestType());
         byteBuf.writeByte(rpcRequest.getSerializeType());
@@ -50,13 +51,21 @@ public class RpcMessageEncoder extends MessageToByteEncoder<RpcRequest> implemen
         byteBuf.writeLong(rpcRequest.getRequestId());
         // body，写入请求体
         byte[] body = getBodyBytes(rpcRequest.getRequestPayload());
-        byteBuf.writeBytes(body);
+        // 如果是心跳请求不处理请求体
+        if(body != null){
+            byteBuf.writeBytes(body);
+        }
+        int bodyLength = body == null ? 0: body.length;
         // 重新处理报文的总长度
         // 保存当前写指针的位置
         int writerIndex = byteBuf.writerIndex();
         // 将写指针的位置移动到总长度的位置上
-        byteBuf.writerIndex(7);
-        byteBuf.writeInt(MessageFormatConstant.HEADER_LENGTH + body.length);
+        byteBuf.writerIndex(
+                MessageFormatConstant.MAGIC.length
+                + MessageFormatConstant.VERSION_LENGTH
+                + MessageFormatConstant.HEADER_FIELD_LENGTH
+        );
+        byteBuf.writeInt(MessageFormatConstant.HEADER_LENGTH + bodyLength);
         // 将写指针归位
         byteBuf.writerIndex(writerIndex);
     }
@@ -67,7 +76,10 @@ public class RpcMessageEncoder extends MessageToByteEncoder<RpcRequest> implemen
      * @return
      */
     private byte[] getBodyBytes(RequestPayload requestPayload) {
-        // TODO 针对不同的消息类型，需要做不同的处理：心跳请求(没有requestPayload)
+        //  针对不同的消息类型，需要做不同的处理：心跳请求(没有requestPayload)
+        if(requestPayload == null){
+            return null;
+        }
         // 对象转字节数组。序列化、压缩
         try {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();

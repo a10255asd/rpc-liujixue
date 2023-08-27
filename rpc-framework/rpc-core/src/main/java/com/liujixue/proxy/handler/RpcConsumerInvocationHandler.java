@@ -3,6 +3,7 @@ package com.liujixue.proxy.handler;
 import com.liujixue.NettyBootstrapInitializer;
 import com.liujixue.RpcBootstrap;
 import com.liujixue.discovery.Registry;
+import com.liujixue.enumeration.RequestType;
 import com.liujixue.exceptions.DiscoveryException;
 import com.liujixue.exceptions.NetworkException;
 import com.liujixue.transport.message.RequestPayload;
@@ -67,7 +68,7 @@ public class RpcConsumerInvocationHandler implements InvocationHandler {
         RpcRequest rpcRequest = RpcRequest.builder()
                 .requestId(1L)
                 .compressType((byte) 1)
-                .requestType((byte) 1)
+                .requestType(RequestType.REQUEST.getId())
                 .serializeType((byte) 1)
                 .requestPayload(requestPayload)
                 .build();
