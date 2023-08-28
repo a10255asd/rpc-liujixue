@@ -1,5 +1,6 @@
 package com.liujixue.proxy.handler;
 
+import com.liujixue.IdGenerator;
 import com.liujixue.NettyBootstrapInitializer;
 import com.liujixue.RpcBootstrap;
 import com.liujixue.discovery.Registry;
@@ -66,7 +67,7 @@ public class RpcConsumerInvocationHandler implements InvocationHandler {
                 .build();
         // TODO 对 请求id 和各种类型做处理
         RpcRequest rpcRequest = RpcRequest.builder()
-                .requestId(1L)
+                .requestId(RpcBootstrap.ID_GENERATOR.getId())
                 .compressType((byte) 1)
                 .requestType(RequestType.REQUEST.getId())
                 .serializeType((byte) 1)

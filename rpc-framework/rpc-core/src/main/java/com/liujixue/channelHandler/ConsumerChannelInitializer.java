@@ -1,7 +1,8 @@
 package com.liujixue.channelHandler;
 
 import com.liujixue.channelHandler.handler.MySimpleChannelInboundHandler;
-import com.liujixue.channelHandler.handler.RpcMessageEncoder;
+import com.liujixue.channelHandler.handler.RpcRequestEncoder;
+import com.liujixue.channelHandler.handler.RpcResponseDecoder;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.logging.LogLevel;
@@ -22,7 +23,10 @@ public class ConsumerChannelInitializer extends ChannelInitializer<SocketChannel
                     // netty 自带的日志处理器
                     .addLast(new LoggingHandler(LogLevel.DEBUG))
                     // 消息编码器（出栈）
-                    .addLast(new RpcMessageEncoder())
+                    .addLast(new RpcRequestEncoder())
+                    // 入栈解码器
+                    .addLast(new RpcResponseDecoder())
+                    // 处理结果
                     .addLast(new MySimpleChannelInboundHandler());
     }
 }

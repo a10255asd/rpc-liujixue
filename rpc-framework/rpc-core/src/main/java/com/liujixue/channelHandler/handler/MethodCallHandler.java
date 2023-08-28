@@ -2,8 +2,10 @@ package com.liujixue.channelHandler.handler;
 
 import com.liujixue.RpcBootstrap;
 import com.liujixue.ServiceConfig;
+import com.liujixue.enumeration.ResponseCode;
 import com.liujixue.transport.message.RequestPayload;
 import com.liujixue.transport.message.RpcRequest;
+import com.liujixue.transport.message.RpcResponse;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import lombok.extern.slf4j.Slf4j;
@@ -25,10 +27,19 @@ public class MethodCallHandler extends SimpleChannelInboundHandler<RpcRequest> {
         // 1. 获取负载内容
         RequestPayload requestPayload = rpcRequest.getRequestPayload();
         // 2. 根据负载内容进行方法调用
-        Object object = callTargetMethod(requestPayload);
-        // 3. TODO :封装响应
-        // 4. TODO :写出响应
-        channelHandlerContext.channel().writeAndFlush(object);
+        Object result = callTargetMethod(requestPayload);
+        if (log.isDebugEnabled()) {
+            log.debug("请求【{}】已经完成方法调用",rpcRequest.getRequestId());
+        }
+        // 3. 封装响应
+        RpcResponse rpcResponse = new RpcResponse();
+        rpcResponse.setCode(ResponseCode.SUCCESS.getCode());
+        rpcResponse.setRequestId(rpcRequest.getRequestId());
+        rpcResponse.setCompressType(rpcRequest.getCompressType());
+        rpcResponse.setSerializeType(rpcRequest.getSerializeType());
+        rpcResponse.setBody(result);
+        // 4. 写出响应
+        channelHandlerContext.channel().writeAndFlush(rpcResponse);
     }
 
     private Object callTargetMethod(RequestPayload requestPayload) {

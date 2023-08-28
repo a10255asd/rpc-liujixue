@@ -1,13 +1,11 @@
 package com.liujixue;
 
 import com.liujixue.channelHandler.handler.MethodCallHandler;
-import com.liujixue.channelHandler.handler.RpcMessageDecoder;
-import com.liujixue.channelHandler.handler.RpcMessageEncoder;
+import com.liujixue.channelHandler.handler.RpcRequestDecoder;
+import com.liujixue.channelHandler.handler.RpcResponseEncoder;
 import com.liujixue.discovery.Registry;
 import com.liujixue.discovery.RegistryConfig;
 import io.netty.bootstrap.ServerBootstrap;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
@@ -16,7 +14,6 @@ import io.netty.handler.logging.LoggingHandler;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.InetSocketAddress;
-import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -40,6 +37,7 @@ public class RpcBootstrap {
     private ProtocolConfig protocolConfig;
     // 端口
     private int port = 8088;
+    public static final IdGenerator ID_GENERATOR = new IdGenerator(1,2);
     // 注册中心
     private Registry registry;
     // 连接的缓存，使用InetSocketAddress做key一定要看有没有重写equals和toString
@@ -147,9 +145,11 @@ public class RpcBootstrap {
                         protected void initChannel(SocketChannel socketChannel) throws Exception {
                             socketChannel.pipeline()
                                     .addLast(new LoggingHandler())
-                                    .addLast(new RpcMessageDecoder())
+                                    .addLast(new RpcRequestDecoder())
                                     // 根据请求进行方法调用
-                                    .addLast(new MethodCallHandler());
+                                    .addLast(new MethodCallHandler())
+                                    // 响应编码
+                                    .addLast(new RpcResponseEncoder());
                         }
                     });
             // 4. 绑定端口

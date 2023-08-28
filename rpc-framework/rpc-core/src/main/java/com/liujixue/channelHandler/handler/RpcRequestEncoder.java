@@ -1,6 +1,8 @@
 package com.liujixue.channelHandler.handler;
 
-import com.liujixue.enumeration.RequestType;
+import com.liujixue.serialize.JDKSerializer;
+import com.liujixue.serialize.SerializeUtil;
+import com.liujixue.serialize.Serializer;
 import com.liujixue.transport.message.MessageFormatConstant;
 import com.liujixue.transport.message.RequestPayload;
 import com.liujixue.transport.message.RpcRequest;
@@ -32,7 +34,7 @@ import java.io.Serializable;
  * 出栈时需要编码，进栈需要解码
  */
 @Slf4j
-public class RpcMessageEncoder extends MessageToByteEncoder<RpcRequest> implements Serializable {
+public class RpcRequestEncoder extends MessageToByteEncoder<RpcRequest> implements Serializable {
     @Override
     protected void encode(ChannelHandlerContext channelHandlerContext, RpcRequest rpcRequest, ByteBuf byteBuf) throws Exception {
         // 4个字节的魔数值
@@ -50,7 +52,11 @@ public class RpcMessageEncoder extends MessageToByteEncoder<RpcRequest> implemen
         // 8 字节的请求id
         byteBuf.writeLong(rpcRequest.getRequestId());
         // body，写入请求体
-        byte[] body = getBodyBytes(rpcRequest.getRequestPayload());
+        // 1. 根据配置的序列化方式进行序列化
+        // TODO: 耦合性高，想替换序列化方式很难
+        Serializer serializer = new JDKSerializer();
+        byte[] body = SerializeUtil.serialize(serializer.serialize(rpcRequest.getRequestPayload()));
+        // 2. 根据配置的压缩方式进行压缩
         // 如果是心跳请求不处理请求体
         if(body != null){
             byteBuf.writeBytes(body);
@@ -68,28 +74,10 @@ public class RpcMessageEncoder extends MessageToByteEncoder<RpcRequest> implemen
         byteBuf.writeInt(MessageFormatConstant.HEADER_LENGTH + bodyLength);
         // 将写指针归位
         byteBuf.writerIndex(writerIndex);
+        if (log.isDebugEnabled()) {
+            log.debug("请求【{}】已经完成报文的编码",rpcRequest.getRequestId());
+        }
     }
 
-    /**
-     * 序列化，将对象转化为byte数组
-     * @param requestPayload 负载
-     * @return
-     */
-    private byte[] getBodyBytes(RequestPayload requestPayload) {
-        //  针对不同的消息类型，需要做不同的处理：心跳请求(没有requestPayload)
-        if(requestPayload == null){
-            return null;
-        }
-        // 对象转字节数组。序列化、压缩
-        try {
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            ObjectOutputStream objectOutputStream = new ObjectOutputStream(baos);
-            objectOutputStream.writeObject(requestPayload);
-            // TODO 压缩
-            return baos.toByteArray();
-        } catch (IOException e) {
-            log.error("序列化时出现异常，【{}】",e);
-            throw new RuntimeException(e);
-        }
-    }
+
 }

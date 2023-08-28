@@ -11,7 +11,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 
 /**
@@ -22,8 +21,8 @@ import java.io.ObjectInputStream;
  * @Description: 基于长度字段的帧解码器
  */
 @Slf4j
-public class RpcMessageDecoder extends LengthFieldBasedFrameDecoder {
-    public RpcMessageDecoder() {
+public class RpcRequestDecoder extends LengthFieldBasedFrameDecoder {
+    public RpcRequestDecoder() {
         super(
                 // 找到当前报文的总长度，截取报文
                 // 最大帧的长度，超过这个length值会直接丢弃
@@ -98,6 +97,9 @@ public class RpcMessageDecoder extends LengthFieldBasedFrameDecoder {
          catch (IOException |ClassNotFoundException e) {
             log.error("请求【{}】,反序列化时发生异常",requestId,e);
             throw new RuntimeException(e);
+        }
+        if (log.isDebugEnabled()) {
+            log.debug("请求【{}】已经在服务端完成解码工作",rpcRequest.getRequestId());
         }
         return rpcRequest;
     }
