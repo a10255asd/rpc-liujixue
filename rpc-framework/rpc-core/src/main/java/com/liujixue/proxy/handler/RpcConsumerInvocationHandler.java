@@ -3,10 +3,12 @@ package com.liujixue.proxy.handler;
 import com.liujixue.IdGenerator;
 import com.liujixue.NettyBootstrapInitializer;
 import com.liujixue.RpcBootstrap;
+import com.liujixue.compress.CompressorFactory;
 import com.liujixue.discovery.Registry;
 import com.liujixue.enumeration.RequestType;
 import com.liujixue.exceptions.DiscoveryException;
 import com.liujixue.exceptions.NetworkException;
+import com.liujixue.serialize.SerializerFactory;
 import com.liujixue.transport.message.RequestPayload;
 import com.liujixue.transport.message.RpcRequest;
 import io.netty.channel.Channel;
@@ -68,9 +70,9 @@ public class RpcConsumerInvocationHandler implements InvocationHandler {
         // TODO 对 请求id 和各种类型做处理
         RpcRequest rpcRequest = RpcRequest.builder()
                 .requestId(RpcBootstrap.ID_GENERATOR.getId())
-                .compressType((byte) 1)
+                .compressType(CompressorFactory.getCompressor(RpcBootstrap.COMPRESS_TYPE).getCode())
                 .requestType(RequestType.REQUEST.getId())
-                .serializeType((byte) 1)
+                .serializeType(SerializerFactory.getSerializer(RpcBootstrap.SERIALIZE_TYPE).getCode())
                 .requestPayload(requestPayload)
                 .build();
         // 4. 写出报文

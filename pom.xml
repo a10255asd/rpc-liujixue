@@ -28,6 +28,8 @@
         <commons-lang3.version>3.12.0</commons-lang3.version>
         <fastjson.version>2.0.34</fastjson.version>
         <lombok.version>1.18.28</lombok.version>
+        <hessian.version>4.0.60</hessian.version>
+        <fast.json2.version>2.0.32</fast.json2.version>
     </properties>
 
     <dependencies>
@@ -77,6 +79,17 @@
                 <groupId>org.projectlombok</groupId>
                 <artifactId>lombok</artifactId>
                 <version>${lombok.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.caucho</groupId>
+                <artifactId>hessian</artifactId>
+                <version>${hessian.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.alibaba</groupId>
+                <artifactId>fastjson</artifactId>
+                <version>${fastjson.version}</version>
             </dependency>
 
         </dependencies>

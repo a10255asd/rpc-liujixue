@@ -1,6 +1,10 @@
 package com.liujixue.channelHandler.handler;
 
+import com.liujixue.compress.Compressor;
+import com.liujixue.compress.CompressorFactory;
 import com.liujixue.enumeration.ResponseCode;
+import com.liujixue.serialize.Serializer;
+import com.liujixue.serialize.SerializerFactory;
 import com.liujixue.transport.message.MessageFormatConstant;
 import com.liujixue.transport.message.RequestPayload;
 import com.liujixue.transport.message.RpcRequest;
@@ -52,7 +56,12 @@ public class RpcResponseEncoder extends MessageToByteEncoder<RpcResponse> implem
         // 8 字节的请求id
         byteBuf.writeLong(rpcResponse.getRequestId());
         // body，写入请求体
-        byte[] body = getBodyBytes(rpcResponse.getBody());
+        // 对响应做序列化
+        Serializer serializer = SerializerFactory.getSerializer(rpcResponse.getSerializeType()).getSerializer();
+        byte[] body = serializer.serialize(rpcResponse.getBody());
+        // 压缩
+        Compressor compressor = CompressorFactory.getCompressor(rpcResponse.getCompressType()).getCompressor();
+        body = compressor.compress(body);
         // 如果是心跳请求不处理请求体
         if(body != null){
             byteBuf.writeBytes(body);
@@ -75,26 +84,5 @@ public class RpcResponseEncoder extends MessageToByteEncoder<RpcResponse> implem
         }
     }
 
-    /**
-     * 序列化，将对象转化为byte数组
-     * @param body 响应体
-     * @return
-     */
-    private byte[] getBodyBytes(Object  body) {
-        //  针对不同的消息类型，需要做不同的处理：心跳请求(没有requestPayload)
-        if(body == null){
-            return null;
-        }
-        // 对象转字节数组。序列化、压缩
-        try {
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            ObjectOutputStream objectOutputStream = new ObjectOutputStream(baos);
-            objectOutputStream.writeObject(body);
-            // TODO 压缩
-            return baos.toByteArray();
-        } catch (IOException e) {
-            log.error("序列化时出现异常，【{}】",e);
-            throw new RuntimeException(e);
-        }
-    }
+
 }

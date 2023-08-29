@@ -20,6 +20,8 @@ public class ConsumerApplication {
         RpcBootstrap.getInstance()
                 .application("first-rpc-consumer")
                 .registry(new RegistryConfig("zookeeper://101.42.50.241:2181"))
+                .serialize("jdk")
+                .compress("gzip")
                 .reference(reference);
         // 获取一个代理对象
         HelloRpc helloRpc = reference.get();

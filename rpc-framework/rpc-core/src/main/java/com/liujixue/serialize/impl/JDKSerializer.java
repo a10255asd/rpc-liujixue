@@ -1,6 +1,7 @@
-package com.liujixue.serialize;
+package com.liujixue.serialize.impl;
 
 import com.liujixue.exceptions.SerializeException;
+import com.liujixue.serialize.Serializer;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.imageio.IIOException;
@@ -24,7 +25,9 @@ public class JDKSerializer implements Serializer {
                 // 将流的定义写try()里会自动关闭。不需要再写finally
                 ByteArrayOutputStream baos = new ByteArrayOutputStream();
              ObjectOutputStream objectOutputStream = new ObjectOutputStream(baos);) {
-
+            if(log.isDebugEnabled()){
+                log.debug("对象【{}】已经完成了序列化",object);
+            }
             objectOutputStream.writeObject(object);
             return baos.toByteArray();
         } catch (IOException e) {
@@ -42,8 +45,13 @@ public class JDKSerializer implements Serializer {
         try (
                 // 将流的定义写try()里会自动关闭。不需要再写finally
                 ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
-                ObjectInputStream objectInputStream = new ObjectInputStream(bais);) {
-            return (T)objectInputStream.readObject();
+                ObjectInputStream objectInputStream = new ObjectInputStream(bais);
+        ) {
+            Object object = objectInputStream.readObject();
+            if(log.isDebugEnabled()){
+                log.debug("类【{}】已经完成了反序列化",object);
+            }
+            return (T)object;
         } catch (IOException |ClassNotFoundException e ) {
             log.info("反序列化对象【{}】时发生异常",clazz);
             throw new SerializeException();

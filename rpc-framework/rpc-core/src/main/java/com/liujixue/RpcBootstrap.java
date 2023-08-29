@@ -29,12 +29,16 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 public class RpcBootstrap {
 
+
     // RpcBootStrap 是个单例，我们希望没个应用程序只有一个实例
     private static final RpcBootstrap rpcBootstrap = new RpcBootstrap();
     // 定义相关的基础配置
     private String appName = "default";
     private RegistryConfig registryConfig;
     private ProtocolConfig protocolConfig;
+    public static String SERIALIZE_TYPE = "jdk";
+
+    public static String COMPRESS_TYPE = "gzip";
     // 端口
     private int port = 8088;
     public static final IdGenerator ID_GENERATOR = new IdGenerator(1,2);
@@ -176,6 +180,27 @@ public class RpcBootstrap {
         // 配置reference，将来调用get方法时，方便生成代理对象
         // 1. reference 需要一个注册中心
         reference.setRegistry(registry);
+        return this;
+    }
+
+    /**
+     * 配置序列化的方式
+     * @param serializeType
+     * @return
+     */
+    public RpcBootstrap serialize(String serializeType) {
+        SERIALIZE_TYPE = serializeType;
+        if(log.isDebugEnabled()){
+            log.debug("我们配置了使用的序列化的方法为【{}】",serializeType);
+        }
+        return this;
+    }
+
+    public RpcBootstrap compress(String compressType) {
+        COMPRESS_TYPE = compressType;
+        if(log.isDebugEnabled()){
+            log.debug("我们配置了使用的解压缩的方法为【{}】",compressType);
+        }
         return this;
     }
 }

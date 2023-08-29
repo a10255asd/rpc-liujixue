@@ -1,19 +1,17 @@
 package com.liujixue.channelHandler.handler;
 
-import com.liujixue.serialize.JDKSerializer;
-import com.liujixue.serialize.SerializeUtil;
+import com.liujixue.RpcBootstrap;
+import com.liujixue.compress.Compressor;
+import com.liujixue.compress.CompressorFactory;
 import com.liujixue.serialize.Serializer;
+import com.liujixue.serialize.SerializerFactory;
 import com.liujixue.transport.message.MessageFormatConstant;
-import com.liujixue.transport.message.RequestPayload;
 import com.liujixue.transport.message.RpcRequest;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToByteEncoder;
 import lombok.extern.slf4j.Slf4j;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
 /**
@@ -53,10 +51,11 @@ public class RpcRequestEncoder extends MessageToByteEncoder<RpcRequest> implemen
         byteBuf.writeLong(rpcRequest.getRequestId());
         // body，写入请求体
         // 1. 根据配置的序列化方式进行序列化
-        // TODO: 耦合性高，想替换序列化方式很难
-        Serializer serializer = new JDKSerializer();
-        byte[] body = SerializeUtil.serialize(serializer.serialize(rpcRequest.getRequestPayload()));
+        Serializer serializer = SerializerFactory.getSerializer(rpcRequest.getSerializeType()).getSerializer();
+        byte[] body = serializer.serialize(rpcRequest.getRequestPayload());
         // 2. 根据配置的压缩方式进行压缩
+        Compressor compressor = CompressorFactory.getCompressor(rpcRequest.getCompressType()).getCompressor();
+        body = compressor.compress(body);
         // 如果是心跳请求不处理请求体
         if(body != null){
             byteBuf.writeBytes(body);
@@ -78,6 +77,4 @@ public class RpcRequestEncoder extends MessageToByteEncoder<RpcRequest> implemen
             log.debug("请求【{}】已经完成报文的编码",rpcRequest.getRequestId());
         }
     }
-
-
 }

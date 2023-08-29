@@ -1,6 +1,10 @@
 package com.liujixue.channelHandler.handler;
 
+import com.liujixue.compress.Compressor;
+import com.liujixue.compress.CompressorFactory;
 import com.liujixue.enumeration.RequestType;
+import com.liujixue.serialize.Serializer;
+import com.liujixue.serialize.SerializerFactory;
 import com.liujixue.transport.message.MessageFormatConstant;
 import com.liujixue.transport.message.RequestPayload;
 import com.liujixue.transport.message.RpcRequest;
@@ -84,21 +88,16 @@ public class RpcResponseDecoder extends LengthFieldBasedFrameDecoder {
 //        if(rpcResponse == RequestType.HEARTBEAT.getId()){
 //            return rpcResponse;
 //        }
-
         int bodyLength = fullLength - headLength;
         byte[] payLoad = new byte[bodyLength];
         byteBuf.readBytes(payLoad);
+        // 解压缩
+        Compressor compressor = CompressorFactory.getCompressor(rpcResponse.getCompressType()).getCompressor();
+        payLoad = compressor.decompress(payLoad);
         // 反序列化
-        try (ByteArrayInputStream bis = new ByteArrayInputStream(payLoad);
-             ObjectInputStream ois = new ObjectInputStream(bis)
-        ){
-            Object object = ois.readObject();
-            rpcResponse.setBody(object);
-        }
-         catch (IOException |ClassNotFoundException e) {
-            log.error("请求【{}】,反序列化时发生异常",requestId,e);
-            throw new RuntimeException(e);
-        }
+        Serializer serializer = SerializerFactory.getSerializer(rpcResponse.getSerializeType()).getSerializer();
+        Object body = serializer.deserialize(payLoad, Object.class);
+        rpcResponse.setBody(body);
         if (log.isDebugEnabled()) {
             log.debug("响应【{}】已在调用端完成解码工作",rpcResponse.getRequestId());
         }
