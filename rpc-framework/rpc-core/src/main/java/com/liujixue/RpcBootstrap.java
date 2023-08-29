@@ -5,6 +5,8 @@ import com.liujixue.channelHandler.handler.RpcRequestDecoder;
 import com.liujixue.channelHandler.handler.RpcResponseEncoder;
 import com.liujixue.discovery.Registry;
 import com.liujixue.discovery.RegistryConfig;
+import com.liujixue.loadbalancer.LoadBalancer;
+import com.liujixue.loadbalancer.impl.RoundRobinLoadBalancer;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -30,6 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class RpcBootstrap {
 
 
+    public static final int PORT = 8090;
     // RpcBootStrap 是个单例，我们希望没个应用程序只有一个实例
     private static final RpcBootstrap rpcBootstrap = new RpcBootstrap();
     // 定义相关的基础配置
@@ -40,10 +43,11 @@ public class RpcBootstrap {
 
     public static String COMPRESS_TYPE = "gzip";
     // 端口
-    private int port = 8088;
+
     public static final IdGenerator ID_GENERATOR = new IdGenerator(1,2);
     // 注册中心
     private Registry registry;
+    public static  LoadBalancer LOAD_BALANCER;
     // 连接的缓存，使用InetSocketAddress做key一定要看有没有重写equals和toString
     public final static Map<InetSocketAddress, Channel> CHANNEL_CACHE = new ConcurrentHashMap<>(16);
     // 维护已经发布且暴露的服务列表，映射关系：key--> interface的全限定名称，value--->serviceConfig
@@ -82,6 +86,8 @@ public class RpcBootstrap {
     public RpcBootstrap registry(RegistryConfig registryConfig) {
         // 尝试使用获取一个注册中心，类似于工厂设计模式
         this.registry = registryConfig.getRegistry();
+        // TODO
+        RpcBootstrap.LOAD_BALANCER = new RoundRobinLoadBalancer();
         return this;
     }
 
@@ -157,7 +163,7 @@ public class RpcBootstrap {
                         }
                     });
             // 4. 绑定端口
-            ChannelFuture channelFuture = serverBootstrap.bind(port);
+            ChannelFuture channelFuture = serverBootstrap.bind(PORT);
             channelFuture.channel().closeFuture().sync();
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
@@ -202,5 +208,9 @@ public class RpcBootstrap {
             log.debug("我们配置了使用的解压缩的方法为【{}】",compressType);
         }
         return this;
+    }
+
+    public Registry getRegistry() {
+        return registry;
     }
 }

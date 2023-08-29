@@ -1,5 +1,6 @@
 package com.liujixue.discovery.impl;
 
+import com.liujixue.RpcBootstrap;
 import com.liujixue.ServiceConfig;
 import com.liujixue.discovery.AbstractRegistry;
 import com.liujixue.exceptions.DiscoveryException;
@@ -43,7 +44,7 @@ public class ZookeeperRegistry extends AbstractRegistry {
         // 创建本机的临时节点，ip:port 服务提供方的端口一般自己设定，我们还需要一个获取ip的方法
         // ip通常需要一个局域网ip，不是127.0.0.1，也不是ipv6
         // TODO: 端口后续处理
-        String node = parentNode + "/" + NetUtils.getIp() + ":" + 8088;
+        String node = parentNode + "/" + NetUtils.getIp() + ":" + RpcBootstrap.PORT;
         if (!ZookeeperUtils.exists(node, zooKeeper, null)) {
             ZookeeperNode zookeeperNode = new ZookeeperNode(node, null);
             ZookeeperUtils.createNode(zooKeeper, zookeeperNode, null, CreateMode.EPHEMERAL);
@@ -53,8 +54,13 @@ public class ZookeeperRegistry extends AbstractRegistry {
         }
     }
 
+    /**
+     * 注册中心的目的是什么？ 拉取合适服务列表
+     * @param serviceName 服务的名称
+     * @return 服务列表
+     */
     @Override
-    public InetSocketAddress lookup(String serviceName) {
+    public List<InetSocketAddress> lookup(String serviceName) {
         // 1. 找到服务对应的节点
         String serviceNode = BASE_PROVIDERS_PATH + "/" + serviceName;
         // 2. 从zk中获取他的子节点
@@ -69,6 +75,6 @@ public class ZookeeperRegistry extends AbstractRegistry {
         if(inetSocketAddresses.size() == 0){
             throw new DiscoveryException("未发现任何可用的服务主机");
         }
-        return inetSocketAddresses.get(0);
+        return inetSocketAddresses;
     }
 }
