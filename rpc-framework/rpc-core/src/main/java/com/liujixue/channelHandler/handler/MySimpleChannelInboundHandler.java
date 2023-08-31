@@ -21,8 +21,11 @@ import java.util.concurrent.CompletableFuture;
 public class MySimpleChannelInboundHandler extends SimpleChannelInboundHandler<RpcResponse> {
     @Override
     protected void channelRead0(ChannelHandlerContext channelHandlerContext, RpcResponse rpcResponse) throws Exception {
-        // 服务提供方，给予的结果
-        Object returnValue = rpcResponse.getBody();
+
+            // 服务提供方，给予的结果
+            Object returnValue = rpcResponse.getBody();
+            //TODO 需要针对 code 做处理
+        returnValue = returnValue == null ? new Object() : returnValue;
         // 从全局的挂起的请求中寻找与之匹配的待处理的 CompletableFuture
         CompletableFuture<Object> completableFuture = RpcBootstrap.PADDING_REQUEST.get(rpcResponse.getRequestId());
         completableFuture.complete(returnValue);

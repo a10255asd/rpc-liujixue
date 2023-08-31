@@ -52,12 +52,16 @@ public class RpcRequestEncoder extends MessageToByteEncoder<RpcRequest> implemen
         // 9.时间戳
         byteBuf.writeLong(rpcRequest.getTimeStamp());
         // body，写入请求体
-        // 1. 根据配置的序列化方式进行序列化
-        Serializer serializer = SerializerFactory.getSerializer(rpcRequest.getSerializeType()).getSerializer();
-        byte[] body = serializer.serialize(rpcRequest.getRequestPayload());
+        byte[] body = null;
         // 2. 根据配置的压缩方式进行压缩
-        Compressor compressor = CompressorFactory.getCompressor(rpcRequest.getCompressType()).getCompressor();
-        body = compressor.compress(body);
+        if(rpcRequest.getRequestPayload() != null ){
+            // 1. 根据配置的序列化方式进行序列化
+            Serializer serializer = SerializerFactory.getSerializer(rpcRequest.getSerializeType()).getSerializer();
+            body = serializer.serialize(rpcRequest.getRequestPayload());
+            Compressor compressor = CompressorFactory.getCompressor(rpcRequest.getCompressType()).getCompressor();
+            body = compressor.compress(body);
+        }
+
         // 如果是心跳请求不处理请求体
         if(body != null){
             byteBuf.writeBytes(body);

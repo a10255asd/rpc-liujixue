@@ -34,11 +34,5 @@ public class ConsumerApplication {
             String sayHi = helloRpc.sayHi("你好");
             log.info("sayHi------->{}",sayHi);
         }
-
-        System.out.println("-----------------开始心跳检测-----------------");
-        // 启动
-        for (Map.Entry<String,ServiceConfig<?>> entry : SERVICES_LIST.entrySet()){
-            HeartbeatDetector.detectHeartbeat(entry.getKey());
-        }
     }
 }

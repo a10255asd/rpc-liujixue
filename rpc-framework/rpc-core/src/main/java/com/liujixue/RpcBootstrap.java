@@ -8,6 +8,7 @@ import com.liujixue.discovery.Registry;
 import com.liujixue.discovery.RegistryConfig;
 import com.liujixue.loadbalancer.LoadBalancer;
 import com.liujixue.loadbalancer.impl.ConsistentHashLoadBalancer;
+import com.liujixue.loadbalancer.impl.MinimumResponseTimeLoadBalancer;
 import com.liujixue.loadbalancer.impl.RoundRobinLoadBalancer;
 import com.liujixue.transport.message.RpcRequest;
 import io.netty.bootstrap.ServerBootstrap;
@@ -21,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -53,6 +55,7 @@ public class RpcBootstrap {
     public static  LoadBalancer LOAD_BALANCER;
     // 连接的缓存，使用InetSocketAddress做key一定要看有没有重写equals和toString
     public final static Map<InetSocketAddress, Channel> CHANNEL_CACHE = new ConcurrentHashMap<>(16);
+    public final static TreeMap<Long, Channel> ANSWER_TIME_CHANNEL_CACHE = new TreeMap<>();
     // 维护已经发布且暴露的服务列表，映射关系：key--> interface的全限定名称，value--->serviceConfig
     public static final Map<String, ServiceConfig<?>> SERVICES_LIST = new ConcurrentHashMap<>(16);
     // 定义全局的对外挂起的 CompletableFuture
@@ -91,7 +94,7 @@ public class RpcBootstrap {
         this.registry = registryConfig.getRegistry();
         // TODO
         // RpcBootstrap.LOAD_BALANCER = new RoundRobinLoadBalancer();
-        RpcBootstrap.LOAD_BALANCER = new ConsistentHashLoadBalancer();
+        RpcBootstrap.LOAD_BALANCER = new MinimumResponseTimeLoadBalancer();
         return this;
     }
 
@@ -186,6 +189,8 @@ public class RpcBootstrap {
      */
 
     public RpcBootstrap reference(ReferenceConfig<?> reference) {
+        // 开启对这个服务的心跳检测
+        HeartbeatDetector.detectHeartbeat(reference.getInterface().getName());
         // 在方法里是是否可以拿到相关的配置项：注册中心
         // 配置reference，将来调用get方法时，方便生成代理对象
         // 1. reference 需要一个注册中心

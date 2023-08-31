@@ -18,6 +18,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.util.Date;
 
 /**
  * @Author LiuJixue
@@ -56,14 +57,17 @@ public class RpcResponseEncoder extends MessageToByteEncoder<RpcResponse> implem
         // 8 字节的请求id
         byteBuf.writeLong(rpcResponse.getRequestId());
         // 9. 时间戳
-        byteBuf.writeLong(rpcResponse.getTimeStamp());
+        byteBuf.writeLong(new Date().getTime());
         // body，写入请求体
         // 对响应做序列化
-        Serializer serializer = SerializerFactory.getSerializer(rpcResponse.getSerializeType()).getSerializer();
-        byte[] body = serializer.serialize(rpcResponse.getBody());
-        // 压缩
-        Compressor compressor = CompressorFactory.getCompressor(rpcResponse.getCompressType()).getCompressor();
-        body = compressor.compress(body);
+        byte[] body = null;
+        if(rpcResponse.getBody() != null){
+            Serializer serializer = SerializerFactory.getSerializer(rpcResponse.getSerializeType()).getSerializer();
+            body = serializer.serialize(rpcResponse.getBody());
+            // 压缩
+            Compressor compressor = CompressorFactory.getCompressor(rpcResponse.getCompressType()).getCompressor();
+            body = compressor.compress(body);
+        }
         // 如果是心跳请求不处理请求体
         if(body != null){
             byteBuf.writeBytes(body);

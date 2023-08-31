@@ -18,6 +18,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.Date;
+import java.util.Random;
 
 /**
  * @Author LiuJixue
@@ -45,6 +46,7 @@ public class RpcRequestDecoder extends LengthFieldBasedFrameDecoder {
 
     @Override
     protected Object decode(ChannelHandlerContext ctx, ByteBuf in) throws Exception {
+        Thread.sleep(new Random().nextInt(50));
         Object decode = super.decode(ctx, in);
         if(decode instanceof ByteBuf byteBuf){
             return decodeFrame(byteBuf);
@@ -92,17 +94,19 @@ public class RpcRequestDecoder extends LengthFieldBasedFrameDecoder {
         if(requestType == RequestType.HEARTBEAT.getId()){
             return rpcRequest;
         }
-
         int payLoadLength = fullLength - headLength;
         byte[] payLoad = new byte[payLoadLength];
         byteBuf.readBytes(payLoad);
-        //  解压缩
-        Compressor compressor = CompressorFactory.getCompressor(rpcRequest.getCompressType()).getCompressor();
-        payLoad = compressor.decompress(payLoad);
-        // 反序列化
-        Serializer serializer = SerializerFactory.getSerializer(serializeType).getSerializer();
-        RequestPayload requestPayload = serializer.deserialize(payLoad, RequestPayload.class);
-        rpcRequest.setRequestPayload(requestPayload);
+        if(payLoad!= null && payLoad.length!= 0){
+            //  解压缩
+            Compressor compressor = CompressorFactory.getCompressor(rpcRequest.getCompressType()).getCompressor();
+            payLoad = compressor.decompress(payLoad);
+            // 反序列化
+            Serializer serializer = SerializerFactory.getSerializer(serializeType).getSerializer();
+            RequestPayload requestPayload = serializer.deserialize(payLoad, RequestPayload.class);
+            rpcRequest.setRequestPayload(requestPayload);
+        }
+
         if (log.isDebugEnabled()) {
             log.debug("请求【{}】已经在服务端完成解码工作",rpcRequest.getRequestId());
         }

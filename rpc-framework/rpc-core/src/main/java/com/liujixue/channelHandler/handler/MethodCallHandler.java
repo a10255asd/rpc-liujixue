@@ -2,6 +2,7 @@ package com.liujixue.channelHandler.handler;
 
 import com.liujixue.RpcBootstrap;
 import com.liujixue.ServiceConfig;
+import com.liujixue.enumeration.RequestType;
 import com.liujixue.enumeration.ResponseCode;
 import com.liujixue.transport.message.RequestPayload;
 import com.liujixue.transport.message.RpcRequest;
@@ -26,10 +27,13 @@ public class MethodCallHandler extends SimpleChannelInboundHandler<RpcRequest> {
     protected void channelRead0(ChannelHandlerContext channelHandlerContext, RpcRequest rpcRequest) throws Exception {
         // 1. 获取负载内容
         RequestPayload requestPayload = rpcRequest.getRequestPayload();
-        // 2. 根据负载内容进行方法调用
-        Object result = callTargetMethod(requestPayload);
-        if (log.isDebugEnabled()) {
-            log.debug("请求【{}】已经完成方法调用",rpcRequest.getRequestId());
+        Object result = null;
+        if(rpcRequest.getRequestType() != RequestType.HEARTBEAT.getId()){
+            // 2. 根据负载内容进行方法调用
+            result = callTargetMethod(requestPayload);
+            if (log.isDebugEnabled()) {
+                log.debug("请求【{}】已经完成方法调用",rpcRequest.getRequestId());
+            }
         }
         // 3. 封装响应
         RpcResponse rpcResponse = new RpcResponse();

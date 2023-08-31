@@ -44,12 +44,18 @@ public class HeartbeatDetector {
                 throw new RuntimeException(e);
             }
         }
-        // 3.定期发送消息
-        new Timer().schedule(new MyTimerTask(),2000);
+        Thread thread = new Thread(() ->
+            // 3.定期发送消息
+            new Timer().scheduleAtFixedRate(new MyTimerTask(), 0, 2000)
+                ,"Rpc-Heartbeat-Detect-Thread");
+        thread.setDaemon(true);
+        thread.start();
     }
     private static class MyTimerTask extends TimerTask {
         @Override
         public void run() {
+            // 将响应时常的map进行清空
+            RpcBootstrap.ANSWER_TIME_CHANNEL_CACHE.clear();
             // 遍历所有的channel
             Map<InetSocketAddress, Channel> cache = RpcBootstrap.CHANNEL_CACHE;
             for (Map.Entry<InetSocketAddress,Channel> entry :cache.entrySet()){
@@ -75,12 +81,21 @@ public class HeartbeatDetector {
                 //
                 Long endTime = 0L;
                 try {
-                    endTime = (Long)completableFuture.get();
+                    completableFuture.get();
+                    endTime = System.currentTimeMillis();
                 } catch (InterruptedException | ExecutionException e) {
                     throw new RuntimeException(e);
                 }
                 Long time = endTime -start;
+                // 使用treemap进行缓存
+                RpcBootstrap.ANSWER_TIME_CHANNEL_CACHE.put(time,channel);
                 log.debug("和【{}】服务器的响应时间是：------》【{}】",entry.getKey(),time );
+            }
+            log.info("------------------------响应时间的treemap--------------------------");
+            for (Map.Entry<Long,Channel> entry :RpcBootstrap.ANSWER_TIME_CHANNEL_CACHE.entrySet()){
+                if(log.isDebugEnabled()){
+                    log.debug("【{}】--------->channelID【{}】",entry.getKey(),entry.getValue().id());
+                }
             }
         }
     }
