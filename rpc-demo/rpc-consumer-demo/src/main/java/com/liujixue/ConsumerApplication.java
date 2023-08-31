@@ -1,7 +1,12 @@
 package com.liujixue;
 
+import com.liujixue.core.HeartbeatDetector;
 import com.liujixue.discovery.RegistryConfig;
 import lombok.extern.slf4j.Slf4j;
+
+import java.util.Map;
+
+import static com.liujixue.RpcBootstrap.SERVICES_LIST;
 
 /**
  * @Author LiuJixue
@@ -28,6 +33,12 @@ public class ConsumerApplication {
         for (int i = 0; i < 10; i++) {
             String sayHi = helloRpc.sayHi("你好");
             log.info("sayHi------->{}",sayHi);
+        }
+
+        System.out.println("-----------------开始心跳检测-----------------");
+        // 启动
+        for (Map.Entry<String,ServiceConfig<?>> entry : SERVICES_LIST.entrySet()){
+            HeartbeatDetector.detectHeartbeat(entry.getKey());
         }
     }
 }

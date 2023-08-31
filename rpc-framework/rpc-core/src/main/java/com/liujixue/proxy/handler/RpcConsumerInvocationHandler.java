@@ -18,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
+import java.util.Date;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -47,17 +48,7 @@ public class RpcConsumerInvocationHandler implements InvocationHandler {
 
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-        // 1. 获取当前配置的负载均衡器，选取一个可用节点
-        InetSocketAddress address = RpcBootstrap.LOAD_BALANCER.selectServerAddress(interfaceRef.getName());
-        if (log.isDebugEnabled()) {
-            log.debug("服务调用方发现了服务【{}】的可用主机【{}】", interfaceRef.getName(), address);
-        }
-        // 2. 尝试获取一个可用通道
-        Channel channel = getAvailableChannel(address);
-        if (log.isDebugEnabled()) {
-            log.debug("获取了和【{}】建立的连接通道,准备发送数据", address);
-        }
-        // TODO ------------------封装报文-----------------
+        // ------------------封装报文-----------------
         // 建造者设计模式
         RequestPayload requestPayload = RequestPayload
                 .builder()
@@ -66,19 +57,32 @@ public class RpcConsumerInvocationHandler implements InvocationHandler {
                 .parametersType(method.getParameterTypes())
                 .parametersValue(args).returnType(method.getReturnType())
                 .build();
-        // TODO 对 请求id 和各种类型做处理
+        // 对 请求id 和各种类型做处理
         RpcRequest rpcRequest = RpcRequest.builder()
                 .requestId(RpcBootstrap.ID_GENERATOR.getId())
                 .compressType(CompressorFactory.getCompressor(RpcBootstrap.COMPRESS_TYPE).getCode())
                 .requestType(RequestType.REQUEST.getId())
                 .serializeType(SerializerFactory.getSerializer(RpcBootstrap.SERIALIZE_TYPE).getCode())
+                .timeStamp(new Date().getTime())
                 .requestPayload(requestPayload)
                 .build();
+        // 将请求存入本地线程，需要在合适的时候调用 remove 方法
+        RpcBootstrap.REQUEST_THREAD_LOCAL.set(rpcRequest);
+        // 2. 从注册中心拉取服务列表，并通过客户端负载均衡寻找一个可用的服务
+        InetSocketAddress address = RpcBootstrap.LOAD_BALANCER.selectServerAddress(interfaceRef.getName());
+        if (log.isDebugEnabled()) {
+            log.debug("服务调用方发现了服务【{}】的可用主机【{}】", interfaceRef.getName(), address);
+        }
+        // 3. 尝试获取一个可用通道
+        Channel channel = getAvailableChannel(address);
+        if (log.isDebugEnabled()) {
+            log.debug("获取了和【{}】建立的连接通道,准备发送数据", address);
+        }
         // 4. 写出报文
         // ---------------异步策略------------
         CompletableFuture<Object> completableFuture = new CompletableFuture<>();
         // 将completableFuture 挂起且暴露，并且得到服务提供方相应的时候调用 complete 方法
-        RpcBootstrap.PADDING_REQUEST.put(1L, completableFuture);
+        RpcBootstrap.PADDING_REQUEST.put(rpcRequest.getRequestId(), completableFuture);
         // 这里直接 writeAndFlush 写出一个请求，这个请求的实例就会进入 pipeline ，pipeline执行出栈的一系列操作
         // 事实上，第一个pipeline一定是将 rpcRequest 这个请求对象转换为二进制的报文
         channel.writeAndFlush(rpcRequest).addListener((ChannelFutureListener) promise -> {
@@ -88,7 +92,9 @@ public class RpcConsumerInvocationHandler implements InvocationHandler {
             }
         });
         // 如果没有地方处理 completableFuture 这里会阻塞，等待 complete 方法的执行
-        // 5. 获得结果
+        // 5. 清理ThreadLocal
+        RpcBootstrap.REQUEST_THREAD_LOCAL.remove();
+        // 6. 获得结果
         return completableFuture.get(10, TimeUnit.SECONDS);
     }
 

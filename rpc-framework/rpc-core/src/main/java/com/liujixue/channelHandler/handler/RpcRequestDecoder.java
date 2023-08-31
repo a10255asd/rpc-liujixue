@@ -17,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.util.Date;
 
 /**
  * @Author LiuJixue
@@ -78,12 +79,15 @@ public class RpcRequestDecoder extends LengthFieldBasedFrameDecoder {
         byte compressType = byteBuf.readByte();
         // 8. 请求id
         long requestId = byteBuf.readLong();
+        // 9. 时间戳
+        long timeStamp = byteBuf.readLong();
         // 我们需要封装
         RpcRequest rpcRequest = new RpcRequest();
         rpcRequest.setRequestType(requestType);
         rpcRequest.setCompressType(compressType);
         rpcRequest.setSerializeType(serializeType);
         rpcRequest.setRequestId(requestId);
+        rpcRequest.setTimeStamp(timeStamp);
         // 心跳请求没有负载，此处可以判断并直接返回
         if(requestType == RequestType.HEARTBEAT.getId()){
             return rpcRequest;

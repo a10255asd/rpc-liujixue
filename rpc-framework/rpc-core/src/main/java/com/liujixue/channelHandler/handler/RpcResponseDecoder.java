@@ -78,12 +78,16 @@ public class RpcResponseDecoder extends LengthFieldBasedFrameDecoder {
         byte compressType = byteBuf.readByte();
         // 8. 请求id
         long requestId = byteBuf.readLong();
+        // 9. 时间戳
+        long timeStamp = byteBuf.readLong();
+
         // 我们需要封装
         RpcResponse rpcResponse = new RpcResponse();
         rpcResponse.setCode(responseCode);
         rpcResponse.setCompressType(compressType);
         rpcResponse.setSerializeType(serializeType);
         rpcResponse.setRequestId(requestId);
+        rpcResponse.setTimeStamp(timeStamp);
         // TODO 心跳请求没有负载，此处可以判断并直接返回
 //        if(rpcResponse == RequestType.HEARTBEAT.getId()){
 //            return rpcResponse;

@@ -55,6 +55,8 @@ public class RpcResponseEncoder extends MessageToByteEncoder<RpcResponse> implem
         byteBuf.writeByte(rpcResponse.getCompressType());
         // 8 字节的请求id
         byteBuf.writeLong(rpcResponse.getRequestId());
+        // 9. 时间戳
+        byteBuf.writeLong(rpcResponse.getTimeStamp());
         // body，写入请求体
         // 对响应做序列化
         Serializer serializer = SerializerFactory.getSerializer(rpcResponse.getSerializeType()).getSerializer();

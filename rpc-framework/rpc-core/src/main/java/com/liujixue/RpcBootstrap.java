@@ -3,10 +3,13 @@ package com.liujixue;
 import com.liujixue.channelHandler.handler.MethodCallHandler;
 import com.liujixue.channelHandler.handler.RpcRequestDecoder;
 import com.liujixue.channelHandler.handler.RpcResponseEncoder;
+import com.liujixue.core.HeartbeatDetector;
 import com.liujixue.discovery.Registry;
 import com.liujixue.discovery.RegistryConfig;
 import com.liujixue.loadbalancer.LoadBalancer;
+import com.liujixue.loadbalancer.impl.ConsistentHashLoadBalancer;
 import com.liujixue.loadbalancer.impl.RoundRobinLoadBalancer;
+import com.liujixue.transport.message.RpcRequest;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -32,7 +35,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class RpcBootstrap {
 
 
-    public static final int PORT = 8090;
+    public static final int PORT = 8089;
     // RpcBootStrap 是个单例，我们希望没个应用程序只有一个实例
     private static final RpcBootstrap rpcBootstrap = new RpcBootstrap();
     // 定义相关的基础配置
@@ -42,8 +45,8 @@ public class RpcBootstrap {
     public static String SERIALIZE_TYPE = "jdk";
 
     public static String COMPRESS_TYPE = "gzip";
+    public static final ThreadLocal<RpcRequest> REQUEST_THREAD_LOCAL = new ThreadLocal<>();
     // 端口
-
     public static final IdGenerator ID_GENERATOR = new IdGenerator(1,2);
     // 注册中心
     private Registry registry;
@@ -87,7 +90,8 @@ public class RpcBootstrap {
         // 尝试使用获取一个注册中心，类似于工厂设计模式
         this.registry = registryConfig.getRegistry();
         // TODO
-        RpcBootstrap.LOAD_BALANCER = new RoundRobinLoadBalancer();
+        // RpcBootstrap.LOAD_BALANCER = new RoundRobinLoadBalancer();
+        RpcBootstrap.LOAD_BALANCER = new ConsistentHashLoadBalancer();
         return this;
     }
 

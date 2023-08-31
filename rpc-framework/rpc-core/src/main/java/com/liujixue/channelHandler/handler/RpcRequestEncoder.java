@@ -49,6 +49,8 @@ public class RpcRequestEncoder extends MessageToByteEncoder<RpcRequest> implemen
         byteBuf.writeByte(rpcRequest.getCompressType());
         // 8 字节的请求id
         byteBuf.writeLong(rpcRequest.getRequestId());
+        // 9.时间戳
+        byteBuf.writeLong(rpcRequest.getTimeStamp());
         // body，写入请求体
         // 1. 根据配置的序列化方式进行序列化
         Serializer serializer = SerializerFactory.getSerializer(rpcRequest.getSerializeType()).getSerializer();
