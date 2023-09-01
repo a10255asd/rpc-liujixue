@@ -13,19 +13,18 @@ import io.netty.channel.ChannelFutureListener;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.InetSocketAddress;
-import java.util.List;
-import java.util.Map;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * @Author LiuJixue
  * @Date 2023/8/31 11:13
  * @PackageName:com.liujixue.core
  * @ClassName: HeartbeatDetector
- * @Description: 心跳检测器
+ * @Description: 心跳检测器，核心目的是探活，感知那些服务器是正常的那些是不正常的
  */
 @Slf4j
 public class HeartbeatDetector {
@@ -59,37 +58,56 @@ public class HeartbeatDetector {
             // 遍历所有的channel
             Map<InetSocketAddress, Channel> cache = RpcBootstrap.CHANNEL_CACHE;
             for (Map.Entry<InetSocketAddress,Channel> entry :cache.entrySet()){
-                Channel channel = entry.getValue();
-                long start = System.currentTimeMillis();
-                // 构建一个心跳请求
-                RpcRequest rpcRequest = RpcRequest.builder()
-                        .requestId(RpcBootstrap.ID_GENERATOR.getId())
-                        .compressType(CompressorFactory.getCompressor(RpcBootstrap.COMPRESS_TYPE).getCode())
-                        .requestType(RequestType.HEARTBEAT.getId())
-                        .serializeType(SerializerFactory.getSerializer(RpcBootstrap.SERIALIZE_TYPE).getCode())
-                        .timeStamp(start)
-                        .build();
-                CompletableFuture<Object> completableFuture = new CompletableFuture<>();
-                // 将completableFuture 挂起且暴露，并且得到服务提供方相应的时候调用 complete 方法
-                RpcBootstrap.PADDING_REQUEST.put(rpcRequest.getRequestId(), completableFuture);
-                channel.writeAndFlush(rpcRequest).addListener((ChannelFutureListener) promise -> {
-                    // 只需要处理异常就行
-                    if (!promise.isSuccess()) {
-                        completableFuture.completeExceptionally(promise.cause());
+                // 定义一个重试的次数
+                int tryTimes = 3;
+                while (tryTimes>0) {
+                    Channel channel = entry.getValue();
+                    long start = System.currentTimeMillis();
+                    // 构建一个心跳请求
+                    RpcRequest rpcRequest = RpcRequest.builder()
+                            .requestId(RpcBootstrap.ID_GENERATOR.getId())
+                            .compressType(CompressorFactory.getCompressor(RpcBootstrap.COMPRESS_TYPE).getCode())
+                            .requestType(RequestType.HEARTBEAT.getId())
+                            .serializeType(SerializerFactory.getSerializer(RpcBootstrap.SERIALIZE_TYPE).getCode())
+                            .timeStamp(start)
+                            .build();
+                    CompletableFuture<Object> completableFuture = new CompletableFuture<>();
+                    // 将completableFuture 挂起且暴露，并且得到服务提供方相应的时候调用 complete 方法
+                    RpcBootstrap.PADDING_REQUEST.put(rpcRequest.getRequestId(), completableFuture);
+                    channel.writeAndFlush(rpcRequest).addListener((ChannelFutureListener) promise -> {
+                        // 只需要处理异常就行
+                        if (!promise.isSuccess()) {
+                            completableFuture.completeExceptionally(promise.cause());
+                        }
+                    });
+                    //
+                    Long endTime = 0L;
+                    try {
+                        // 不想一直阻塞可以添加参数
+                        completableFuture.get(1, TimeUnit.SECONDS);
+                        endTime = System.currentTimeMillis();
+                    } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                        // 一旦发生问题，需要优先重试
+                        tryTimes--;
+                        log.error("和【{}】地址为【{}】的主机连接发生异常，正在进行第【{}】次重试", channel.remoteAddress(),3-tryTimes);
+                        // 将是失效的地址移除服务列表
+                        if(tryTimes == 0){
+                            RpcBootstrap.CHANNEL_CACHE.remove(entry.getKey());
+                        }
+                        // 尝试等待一段时间后重试
+                        try {
+                            Thread.sleep(10*(new Random().nextInt(5)));
+                        } catch (InterruptedException ex) {
+                            throw new RuntimeException(ex);
+                        }
+                        continue;
                     }
-                });
-                //
-                Long endTime = 0L;
-                try {
-                    completableFuture.get();
-                    endTime = System.currentTimeMillis();
-                } catch (InterruptedException | ExecutionException e) {
-                    throw new RuntimeException(e);
+                    Long time = endTime - start;
+                    // 使用treemap进行缓存
+                    RpcBootstrap.ANSWER_TIME_CHANNEL_CACHE.put(time, channel);
+                    log.debug("和【{}】服务器的响应时间是：------》【{}】", entry.getKey(), time);
+                    break;
                 }
-                Long time = endTime -start;
-                // 使用treemap进行缓存
-                RpcBootstrap.ANSWER_TIME_CHANNEL_CACHE.put(time,channel);
-                log.debug("和【{}】服务器的响应时间是：------》【{}】",entry.getKey(),time );
             }
             log.info("------------------------响应时间的treemap--------------------------");
             for (Map.Entry<Long,Channel> entry :RpcBootstrap.ANSWER_TIME_CHANNEL_CACHE.entrySet()){

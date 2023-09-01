@@ -37,7 +37,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class RpcBootstrap {
 
 
-    public static final int PORT = 8089;
+    public static final int PORT = 8091;
     // RpcBootStrap 是个单例，我们希望没个应用程序只有一个实例
     private static final RpcBootstrap rpcBootstrap = new RpcBootstrap();
     // 定义相关的基础配置
