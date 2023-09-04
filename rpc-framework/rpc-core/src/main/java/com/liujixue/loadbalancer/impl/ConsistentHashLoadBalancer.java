@@ -121,11 +121,6 @@ public class ConsistentHashLoadBalancer extends AbstractLoadBalancer {
             return circle.get(hash);
         }
 
-        @Override
-        public void reBalance() {
-
-        }
-
         private String toBinary(int i){
             String binaryString = Integer.toBinaryString(i);
             int index = 32 - binaryString.length();

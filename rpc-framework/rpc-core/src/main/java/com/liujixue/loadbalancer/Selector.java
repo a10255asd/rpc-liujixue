@@ -11,6 +11,4 @@ public interface Selector {
     InetSocketAddress getNext();
 
 
-    // TODO 服务动态上下线需要进行 reBalance
-    void reBalance();
 }

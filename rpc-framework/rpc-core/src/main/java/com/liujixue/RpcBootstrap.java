@@ -19,7 +19,11 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.logging.LoggingHandler;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.File;
+import java.io.FileFilter;
 import java.net.InetSocketAddress;
+import java.net.URL;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -37,7 +41,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class RpcBootstrap {
 
 
-    public static final int PORT = 8091;
+    public static final int PORT = 8089;
     // RpcBootStrap 是个单例，我们希望没个应用程序只有一个实例
     private static final RpcBootstrap rpcBootstrap = new RpcBootstrap();
     // 定义相关的基础配置
@@ -94,7 +98,7 @@ public class RpcBootstrap {
         this.registry = registryConfig.getRegistry();
         // TODO
         // RpcBootstrap.LOAD_BALANCER = new RoundRobinLoadBalancer();
-        RpcBootstrap.LOAD_BALANCER = new MinimumResponseTimeLoadBalancer();
+        RpcBootstrap.LOAD_BALANCER = new RoundRobinLoadBalancer();
         return this;
     }
 
@@ -221,5 +225,70 @@ public class RpcBootstrap {
 
     public Registry getRegistry() {
         return registry;
+    }
+
+    public RpcBootstrap scan(String packageName) {
+        // 1. 通过 packageName 获取其下的所有的类的全限定名称
+        List<String> classNames = getAllClassNames(packageName);
+        // 2. 通过反射获取接口，构建具体实现
+        // 3. 进行发布
+        return this;
+    }
+
+    private List<String> getAllClassNames(String packageName) {
+        // 1. 通过 packageName 获得绝对路径
+        // com.liujixue.xxx.xxx ---> /com/liujixue/xxx/xxx
+        String basePath = packageName.replaceAll("\\.","\\/");
+        System.out.println(basePath);
+        URL url = ClassLoader.getSystemClassLoader().getResource(basePath);
+        if(url == null){
+            throw new RuntimeException("包扫描时路径不存在");
+        }
+        String absolutePath = url.getPath();
+        List<String> classNames = new ArrayList<>();
+        classNames = recursionFile(absolutePath,classNames,basePath);
+
+        return null;
+    }
+
+    private List<String> recursionFile(String absolutePath, List<String> classNames,String basePath) {
+        // 获取文件
+        File file = new File(absolutePath);
+        // 判断文件是否是文件夹
+        if(file.isDirectory()){
+            // 找到文件夹的所有的文件
+            File[] children = file.listFiles(pathname -> pathname.isDirectory() || pathname.getPath().contains(".class"));
+            if(children == null || children.length == 0){
+                return classNames;
+            }
+            for (File child : children) {
+                if (child.isDirectory()){
+                    // 递归调用
+                    recursionFile(child.getAbsolutePath(),classNames,basePath);
+                }else {
+                    // 文件的路径转换为类的全限定名称
+                    String className = getClassNameByAbsolutePath(child.getAbsolutePath(),basePath);
+                    classNames.add(className);
+                }
+            }
+        }else {
+            String className = getClassNameByAbsolutePath(absolutePath,basePath);
+            classNames.add(className);
+        }
+        return classNames;
+    }
+
+    private String getClassNameByAbsolutePath(String absolutePath,String basePath) {
+         String fileName = absolutePath
+                 .substring(absolutePath.indexOf(basePath))
+                 .replaceAll("/",".");
+         fileName = fileName.substring(0,fileName.indexOf(".class"));
+        System.out.println(fileName);
+        return fileName;
+    }
+
+    public static void main(String[] args) {
+        List<String> allClassNames = RpcBootstrap.getInstance().getAllClassNames("com.liujixue");
+        System.out.println(allClassNames);
     }
 }

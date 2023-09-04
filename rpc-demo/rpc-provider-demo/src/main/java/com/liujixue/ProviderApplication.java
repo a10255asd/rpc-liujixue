@@ -28,6 +28,8 @@ public class ProviderApplication {
                 .protocol(new ProtocolConfig("jdk"))
                 // 发布服务
                 .publish(service)
+                // 扫包批量发布
+                .scan("com.liujixue")
                 // 启动服务
                 .start();
     }
