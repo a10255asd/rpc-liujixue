@@ -27,7 +27,7 @@ public class ProviderApplication {
                 .registry(new RegistryConfig("zookeeper://101.42.50.241:2181"))
                 .protocol(new ProtocolConfig("jdk"))
                 // 发布服务
-                .publish(service)
+                //.publish(service)
                 // 扫包批量发布
                 .scan("com.liujixue")
                 // 启动服务

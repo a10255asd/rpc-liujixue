@@ -1,5 +1,6 @@
 package com.liujixue;
 
+import com.liujixue.annotation.RpcApi;
 import com.liujixue.channelHandler.handler.MethodCallHandler;
 import com.liujixue.channelHandler.handler.RpcRequestDecoder;
 import com.liujixue.channelHandler.handler.RpcResponseEncoder;
@@ -21,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
 import java.io.FileFilter;
+import java.lang.reflect.InvocationTargetException;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.ArrayList;
@@ -29,6 +31,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 
 /**
@@ -231,7 +234,40 @@ public class RpcBootstrap {
         // 1. 通过 packageName 获取其下的所有的类的全限定名称
         List<String> classNames = getAllClassNames(packageName);
         // 2. 通过反射获取接口，构建具体实现
-        // 3. 进行发布
+        List<Class<?>> classes = classNames.stream()
+                .map(className -> {
+                    try {
+                        return Class.forName(className);
+                    } catch (ClassNotFoundException e) {
+                        throw new RuntimeException(e);
+                    }
+                }).filter(clazz -> clazz.getAnnotation(RpcApi.class) != null)
+                .collect(Collectors.toList());
+        for (Class<?> clazz : classes) {
+            // 获取他的接口
+            Class<?>[] interfaces = clazz.getInterfaces();
+            Object instance = null;
+            try {
+                instance = clazz.getConstructor().newInstance();
+
+            } catch (InstantiationException | IllegalAccessException | InvocationTargetException |
+                     NoSuchMethodException e) {
+                throw new RuntimeException(e);
+            }
+            List<ServiceConfig<?>> serviceConfigs = new ArrayList<>();
+            for (Class<?> anInterface : interfaces) {
+                ServiceConfig<?> serviceConfig = new ServiceConfig<>();
+                serviceConfig.setInterface(anInterface);
+                serviceConfig.setRef(instance);
+                serviceConfigs.add(serviceConfig);
+                if(log.isDebugEnabled()){
+                    log.debug("---->已经通过包扫描将服务【{}】，发布",anInterface);
+                }
+                publish(serviceConfig);
+            }
+            // 3. 进行发布 批量发布
+            // publish(serviceConfigs);
+        }
         return this;
     }
 

@@ -2,6 +2,7 @@ package com.liujixue.impl;
 
 
 import com.liujixue.HelloRpc;
+import com.liujixue.annotation.RpcApi;
 
 /**
  * @Author LiuJixue
@@ -9,6 +10,7 @@ import com.liujixue.HelloRpc;
  * @PackageName:com.liujixue.impl
  * @ClassName: HelloRpcImpl
  */
+@RpcApi
 public class HelloRpcImpl implements HelloRpc {
     @Override
     public String sayHi(String msg) {
