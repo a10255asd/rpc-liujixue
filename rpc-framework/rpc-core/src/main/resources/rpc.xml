@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE configuration SYSTEM "http://blog.liujixue.cn/rpc-config.dtd">
+<configuration>
+    <port>8089</port>
+    <appName>rpc-default-appName</appName>
+    <registry url="zookeeper://101.42.50.241:2181"/>
+
+    <!-- 二选一 -->
+    <serializeType type="hessian"/>
+    <serializer class="com.liujixue.serialize.impl.HessianSerializer"/>
+    
+    <!-- 二选一 -->
+    <compressType type="gzip"/>
+    <compressor class="com.liujixue.compress.impl.GZIPCompressor"/>
+    
+    <!-- 二选一 -->
+    <loadBalancer class="com.liujixue.loadbalancer.impl.RoundRobinLoadBalancer"/>
+    <loadBalancerType type="roundRobinLoad"/>
+    
+    <idGenerator class="com.liujixue.IdGenerator" dataCenterId="2" machineId="4"/>
+
+</configuration>

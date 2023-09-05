@@ -30,7 +30,7 @@ import java.util.concurrent.TimeoutException;
 public class HeartbeatDetector {
     public static void detectHeartbeat(String serviceName){
         // 1.从注册中心拉取服务列表并简历连接
-        Registry registry = RpcBootstrap.getInstance().getRegistry();
+        Registry registry = RpcBootstrap.getInstance().getConfiguration().getRegistryConfig().getRegistry();
         List<InetSocketAddress> addresses = registry.lookup(serviceName);
         // 2.将连接进行缓存
         for (InetSocketAddress address : addresses) {
@@ -65,10 +65,10 @@ public class HeartbeatDetector {
                     long start = System.currentTimeMillis();
                     // 构建一个心跳请求
                     RpcRequest rpcRequest = RpcRequest.builder()
-                            .requestId(RpcBootstrap.ID_GENERATOR.getId())
-                            .compressType(CompressorFactory.getCompressor(RpcBootstrap.COMPRESS_TYPE).getCode())
+                            .requestId(RpcBootstrap.getInstance().getConfiguration().getIdGenerator().getId())
+                            .compressType(CompressorFactory.getCompressor(RpcBootstrap.getInstance().getConfiguration().getCompressType()).getCode())
                             .requestType(RequestType.HEARTBEAT.getId())
-                            .serializeType(SerializerFactory.getSerializer(RpcBootstrap.SERIALIZE_TYPE).getCode())
+                            .serializeType(SerializerFactory.getSerializer(RpcBootstrap.getInstance().getConfiguration().getSerializeType()).getCode())
                             .timeStamp(start)
                             .build();
                     CompletableFuture<Object> completableFuture = new CompletableFuture<>();

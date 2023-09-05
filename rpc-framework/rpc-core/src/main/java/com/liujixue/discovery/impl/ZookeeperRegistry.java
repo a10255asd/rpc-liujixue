@@ -47,7 +47,7 @@ public class ZookeeperRegistry extends AbstractRegistry {
         // 创建本机的临时节点，ip:port 服务提供方的端口一般自己设定，我们还需要一个获取ip的方法
         // ip通常需要一个局域网ip，不是127.0.0.1，也不是ipv6
         // TODO: 端口后续处理
-        String node = parentNode + "/" + NetUtils.getIp() + ":" + RpcBootstrap.PORT;
+        String node = parentNode + "/" + NetUtils.getIp() + ":" + RpcBootstrap.getInstance().getConfiguration().getPort();
         if (!ZookeeperUtils.exists(node, zooKeeper, null)) {
             ZookeeperNode zookeeperNode = new ZookeeperNode(node, null);
             ZookeeperUtils.createNode(zooKeeper, zookeeperNode, null, CreateMode.EPHEMERAL);

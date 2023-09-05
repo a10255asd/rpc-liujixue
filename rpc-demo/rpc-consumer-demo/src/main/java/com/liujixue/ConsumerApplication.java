@@ -1,12 +1,8 @@
 package com.liujixue;
 
-import com.liujixue.core.HeartbeatDetector;
 import com.liujixue.discovery.RegistryConfig;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.Map;
-
-import static com.liujixue.RpcBootstrap.SERVICES_LIST;
 
 /**
  * @Author LiuJixue

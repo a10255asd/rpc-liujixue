@@ -31,7 +31,7 @@ public class UpAndDownWatcher implements Watcher {
             }
             // 重新拉取服务列表
             String serviceName = getServiceName(event.getPath());
-            Registry registry = RpcBootstrap.getInstance().getRegistry();
+            Registry registry = RpcBootstrap.getInstance().getConfiguration().getRegistryConfig().getRegistry();
             List<InetSocketAddress> addresses = registry.lookup(serviceName);
             // 处理新增的节点
             for (InetSocketAddress address : addresses) {
@@ -55,7 +55,7 @@ public class UpAndDownWatcher implements Watcher {
                 }
             }
             // 获得负载均衡器，进行重新的loadBalance
-            LoadBalancer loadBalancer = RpcBootstrap.LOAD_BALANCER;
+            LoadBalancer loadBalancer = RpcBootstrap.getInstance().getConfiguration().getLoadBalancer();
             loadBalancer.reloadBalance(serviceName,addresses);
         }
     }

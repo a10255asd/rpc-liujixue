@@ -1,0 +1,3 @@
+com.liujixue.loadbalancer.impl.ConsistentHashLoadBalancer
+com.liujixue.loadbalancer.impl.MinimumResponseTimeLoadBalancer
+com.liujixue.loadbalancer.impl.RoundRobinLoadBalancer

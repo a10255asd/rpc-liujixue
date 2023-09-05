@@ -59,17 +59,17 @@ public class RpcConsumerInvocationHandler implements InvocationHandler {
                 .build();
         // 对 请求id 和各种类型做处理
         RpcRequest rpcRequest = RpcRequest.builder()
-                .requestId(RpcBootstrap.ID_GENERATOR.getId())
-                .compressType(CompressorFactory.getCompressor(RpcBootstrap.COMPRESS_TYPE).getCode())
+                .requestId(RpcBootstrap.getInstance().getConfiguration().getIdGenerator().getId())
+                .compressType(CompressorFactory.getCompressor(RpcBootstrap.getInstance().getConfiguration().getCompressType()).getCode())
                 .requestType(RequestType.REQUEST.getId())
-                .serializeType(SerializerFactory.getSerializer(RpcBootstrap.SERIALIZE_TYPE).getCode())
+                .serializeType(SerializerFactory.getSerializer(RpcBootstrap.getInstance().getConfiguration().getSerializeType()).getCode())
                 .timeStamp(new Date().getTime())
                 .requestPayload(requestPayload)
                 .build();
         // 将请求存入本地线程，需要在合适的时候调用 remove 方法
         RpcBootstrap.REQUEST_THREAD_LOCAL.set(rpcRequest);
         // 2. 从注册中心拉取服务列表，并通过客户端负载均衡寻找一个可用的服务
-        InetSocketAddress address = RpcBootstrap.LOAD_BALANCER.selectServerAddress(interfaceRef.getName());
+        InetSocketAddress address = RpcBootstrap.getInstance().getConfiguration().getLoadBalancer().selectServerAddress(interfaceRef.getName());
         if (log.isDebugEnabled()) {
             log.debug("服务调用方发现了服务【{}】的可用主机【{}】", interfaceRef.getName(), address);
         }
