@@ -97,10 +97,10 @@ public class RpcResponseDecoder extends LengthFieldBasedFrameDecoder {
         byteBuf.readBytes(payLoad);
         if(payLoad != null && payLoad.length>0){
             // 解压缩
-            Compressor compressor = CompressorFactory.getCompressor(rpcResponse.getCompressType()).getCompressor();
+            Compressor compressor = CompressorFactory.getCompressor(rpcResponse.getCompressType()).getImpl();
             payLoad = compressor.decompress(payLoad);
             // 反序列化
-            Serializer serializer = SerializerFactory.getSerializer(rpcResponse.getSerializeType()).getSerializer();
+            Serializer serializer = SerializerFactory.getSerializer(rpcResponse.getSerializeType()).getImpl();
             Object body = serializer.deserialize(payLoad, Object.class);
             rpcResponse.setBody(body);
         }

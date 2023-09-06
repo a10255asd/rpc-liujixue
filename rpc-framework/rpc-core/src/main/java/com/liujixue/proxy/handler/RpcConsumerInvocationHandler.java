@@ -3,6 +3,7 @@ package com.liujixue.proxy.handler;
 import com.liujixue.IdGenerator;
 import com.liujixue.NettyBootstrapInitializer;
 import com.liujixue.RpcBootstrap;
+import com.liujixue.annotation.TryTimes;
 import com.liujixue.compress.CompressorFactory;
 import com.liujixue.discovery.Registry;
 import com.liujixue.enumeration.RequestType;
@@ -46,56 +47,102 @@ public class RpcConsumerInvocationHandler implements InvocationHandler {
         this.interfaceRef = interfaceRef;
     }
 
+    /**
+     * 所有得放啊调用本质都会走到这里
+     *
+     * @param proxy  the proxy instance that the method was invoked on
+     * @param method the {@code Method} instance corresponding to
+     *               the interface method invoked on the proxy instance.  The declaring
+     *               class of the {@code Method} object will be the interface that
+     *               the method was declared in, which may be a superinterface of the
+     *               proxy interface that the proxy class inherits the method through.
+     * @param args   an array of objects containing the values of the
+     *               arguments passed in the method invocation on the proxy instance,
+     *               or {@code null} if interface method takes no arguments.
+     *               Arguments of primitive types are wrapped in instances of the
+     *               appropriate primitive wrapper class, such as
+     *               {@code java.lang.Integer} or {@code java.lang.Boolean}.
+     * @return
+     * @throws Throwable
+     */
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-        // ------------------封装报文-----------------
-        // 建造者设计模式
-        RequestPayload requestPayload = RequestPayload
-                .builder()
-                .interfaceName(interfaceRef.getName())
-                .methodName(method.getName())
-                .parametersType(method.getParameterTypes())
-                .parametersValue(args).returnType(method.getReturnType())
-                .build();
-        // 对 请求id 和各种类型做处理
-        RpcRequest rpcRequest = RpcRequest.builder()
-                .requestId(RpcBootstrap.getInstance().getConfiguration().getIdGenerator().getId())
-                .compressType(CompressorFactory.getCompressor(RpcBootstrap.getInstance().getConfiguration().getCompressType()).getCode())
-                .requestType(RequestType.REQUEST.getId())
-                .serializeType(SerializerFactory.getSerializer(RpcBootstrap.getInstance().getConfiguration().getSerializeType()).getCode())
-                .timeStamp(new Date().getTime())
-                .requestPayload(requestPayload)
-                .build();
-        // 将请求存入本地线程，需要在合适的时候调用 remove 方法
-        RpcBootstrap.REQUEST_THREAD_LOCAL.set(rpcRequest);
-        // 2. 从注册中心拉取服务列表，并通过客户端负载均衡寻找一个可用的服务
-        InetSocketAddress address = RpcBootstrap.getInstance().getConfiguration().getLoadBalancer().selectServerAddress(interfaceRef.getName());
-        if (log.isDebugEnabled()) {
-            log.debug("服务调用方发现了服务【{}】的可用主机【{}】", interfaceRef.getName(), address);
+        // 代表不重试
+        int tryTimes = 0;
+        int intervalTime = 0;
+        // 从接口中判断是否需要重试
+        TryTimes tryTimesAnnotation = method.getAnnotation(TryTimes.class);
+        if(tryTimesAnnotation!=null){
+            tryTimes = tryTimesAnnotation.tryTimes();
+            intervalTime = tryTimesAnnotation.intervalTime();
         }
-        // 3. 尝试获取一个可用通道
-        Channel channel = getAvailableChannel(address);
-        if (log.isDebugEnabled()) {
-            log.debug("获取了和【{}】建立的连接通道,准备发送数据", address);
-        }
-        // 4. 写出报文
-        // ---------------异步策略------------
-        CompletableFuture<Object> completableFuture = new CompletableFuture<>();
-        // 将completableFuture 挂起且暴露，并且得到服务提供方相应的时候调用 complete 方法
-        RpcBootstrap.PADDING_REQUEST.put(rpcRequest.getRequestId(), completableFuture);
-        // 这里直接 writeAndFlush 写出一个请求，这个请求的实例就会进入 pipeline ，pipeline执行出栈的一系列操作
-        // 事实上，第一个pipeline一定是将 rpcRequest 这个请求对象转换为二进制的报文
-        channel.writeAndFlush(rpcRequest).addListener((ChannelFutureListener) promise -> {
-            // 只需要处理异常就行
-            if (!promise.isSuccess()) {
-                completableFuture.completeExceptionally(promise.cause());
+        while(true) {
+            // 什么情况下需要重试 1. 本身发生异常 2. 响应有问题 code == 500
+            try {
+                // ------------------封装报文-----------------
+                // 建造者设计模式
+                RequestPayload requestPayload = RequestPayload
+                        .builder()
+                        .interfaceName(interfaceRef.getName())
+                        .methodName(method.getName())
+                        .parametersType(method.getParameterTypes())
+                        .parametersValue(args).returnType(method.getReturnType())
+                        .build();
+                // 对 请求id 和各种类型做处理
+                RpcRequest rpcRequest = RpcRequest.builder()
+                        .requestId(RpcBootstrap.getInstance().getConfiguration().getIdGenerator().getId())
+                        .compressType(CompressorFactory.getCompressor(RpcBootstrap.getInstance().getConfiguration().getCompressType()).getCode())
+                        .requestType(RequestType.REQUEST.getId())
+                        .serializeType(SerializerFactory.getSerializer(RpcBootstrap.getInstance().getConfiguration().getSerializeType()).getCode())
+                        .timeStamp(System.currentTimeMillis())
+                        .requestPayload(requestPayload)
+                        .build();
+                // 将请求存入本地线程，需要在合适的时候调用 remove 方法
+                RpcBootstrap.REQUEST_THREAD_LOCAL.set(rpcRequest);
+                // 2. 从注册中心拉取服务列表，并通过客户端负载均衡寻找一个可用的服务
+                InetSocketAddress address = RpcBootstrap.getInstance().getConfiguration().getLoadBalancer().selectServerAddress(interfaceRef.getName());
+                if (log.isDebugEnabled()) {
+                    log.debug("服务调用方发现了服务【{}】的可用主机【{}】", interfaceRef.getName(), address);
+                }
+                // 3. 尝试获取一个可用通道
+                Channel channel = getAvailableChannel(address);
+                if (log.isDebugEnabled()) {
+                    log.debug("获取了和【{}】建立的连接通道,准备发送数据", address);
+                }
+                // 4. 写出报文
+                // ---------------异步策略------------
+                CompletableFuture<Object> completableFuture = new CompletableFuture<>();
+                // 将completableFuture 挂起且暴露，并且得到服务提供方相应的时候调用 complete 方法
+                RpcBootstrap.PADDING_REQUEST.put(rpcRequest.getRequestId(), completableFuture);
+                // 这里直接 writeAndFlush 写出一个请求，这个请求的实例就会进入 pipeline ，pipeline执行出栈的一系列操作
+                // 事实上，第一个pipeline一定是将 rpcRequest 这个请求对象转换为二进制的报文
+                channel.writeAndFlush(rpcRequest).addListener((ChannelFutureListener) promise -> {
+                    // 只需要处理异常就行
+                    if (!promise.isSuccess()) {
+                        completableFuture.completeExceptionally(promise.cause());
+                    }
+                });
+                // 如果没有地方处理 completableFuture 这里会阻塞，等待 complete 方法的执行
+                // 5. 清理ThreadLocal
+                RpcBootstrap.REQUEST_THREAD_LOCAL.remove();
+                // 6. 获得结果
+                return completableFuture.get(10, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                // 次数减一，并且等待固定时间。固定时间有一定的问题，可能引起重试风暴
+                tryTimes--;
+                try {
+                    Thread.sleep(intervalTime);
+                }catch (InterruptedException ex){
+                    log.error("在进行重试时发生异常【{}】",ex);
+                }
+                if (tryTimes<0){
+                    log.error("对方法【{}】进行远程调用时，重试【{}】次，依然不可调用",method.getName(),tryTimes,e);
+                    break;
+                }
+                log.error("进行第【{}】次重试时发生异常",3-tryTimes,e);
             }
-        });
-        // 如果没有地方处理 completableFuture 这里会阻塞，等待 complete 方法的执行
-        // 5. 清理ThreadLocal
-        RpcBootstrap.REQUEST_THREAD_LOCAL.remove();
-        // 6. 获得结果
-        return completableFuture.get(10, TimeUnit.SECONDS);
+        }
+        throw new RuntimeException("执行远程方法"+ method +"调用失败");
     }
 
     /**

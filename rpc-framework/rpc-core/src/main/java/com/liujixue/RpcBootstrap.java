@@ -90,18 +90,7 @@ public class RpcBootstrap {
         configuration.setLoadBalancer(loadBalancer);
         return this;
     }
-    /**
-     * 配置当前暴露的服务使用的协议
-     * @param protocolConfig 协议的封装
-     * @return this当前实例
-     */
-    public RpcBootstrap protocol(ProtocolConfig protocolConfig) {
-       configuration.setProtocolConfig(protocolConfig);
-        if (log.isDebugEnabled()) {
-            log.debug("当前工程使用了：【{}】,进行序列化", protocolConfig.toString());
-        }
-        return this;
-    }
+
     /**
      * 发布服务,将接口--> 实现，注册到服务中心
      * @param service 独立封装需要的发布的服务

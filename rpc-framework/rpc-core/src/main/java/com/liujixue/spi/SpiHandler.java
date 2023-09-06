@@ -1,5 +1,7 @@
 package com.liujixue.spi;
 
+import com.liujixue.config.ObjectWrapper;
+import com.liujixue.exceptions.SpiException;
 import com.liujixue.loadbalancer.LoadBalancer;
 import lombok.extern.slf4j.Slf4j;
 
@@ -7,11 +9,13 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 /**
  * @Author LiuJixue
@@ -26,7 +30,8 @@ public class SpiHandler {
     private static final String BASE_PATH = "META-INF/rpc-services";
     // 先定义一个缓存，用来保存spi相关的原始内容
     private static final Map<String, List<String>> SPI_CONTENT = new ConcurrentHashMap<>(8);
-
+    // 缓存的是每一个接口对应的实现的实例
+    private static final Map<Class<?>,List<ObjectWrapper<?>>> SPI_IMPLEMENT = new ConcurrentHashMap<>(32);
     // 加载当前类之后，需要将spi信息进行保存，避免运行时频繁执行 IO
     static {
         // TODO 怎么加载当前工程和jar包中的classPath中的资源
@@ -45,6 +50,54 @@ public class SpiHandler {
         }
     }
 
+    /**
+     * 获取第一个和当前服务相关的实例
+     * @param clazz 一个服务接口class实例
+     * @return 实现类的实例
+     * @param <T> 泛型
+     */
+    public synchronized static <T> ObjectWrapper<T> get(Class<T> clazz) {
+        // 1. 优先走缓存
+        List<ObjectWrapper<?>> objectWrappers = SPI_IMPLEMENT.get(clazz);
+        if(objectWrappers!=null && objectWrappers.size() >0 ){
+            return (ObjectWrapper<T>)objectWrappers.get(0);
+        }
+        // 2. 构建缓存
+        buildCache(clazz);
+        List<ObjectWrapper<?>> result = SPI_IMPLEMENT.get(clazz);
+        if(result == null || result.isEmpty()){
+            return null;
+        }
+        // 3. 再次尝试获取第一个
+        return (ObjectWrapper<T>)result.get(0);
+    }
+
+    /**
+     * 获取所有和当前服务相关的实例
+     * @param clazz 一个服务接口的class实例
+     * @return 实现类的实例集合
+     * @param <T> 泛型
+     */
+    public synchronized static <T> List<ObjectWrapper<T>> getList(Class<T> clazz) {
+        // 1. 优先走缓存
+        List<ObjectWrapper<?>> objectWrappers = SPI_IMPLEMENT.get(clazz);
+        if(objectWrappers!=null && !objectWrappers.isEmpty()){
+            return objectWrappers.stream().map(wrapper->(ObjectWrapper<T>)wrapper).collect(Collectors.toList());
+        }
+        // 构建缓存
+        buildCache(clazz);
+        // 再次获取
+        objectWrappers = SPI_IMPLEMENT.get(clazz);
+        if(objectWrappers!=null && !objectWrappers.isEmpty()){
+            return objectWrappers.stream().map(wrapper->(ObjectWrapper<T>)wrapper).collect(Collectors.toList());
+        };
+        return new ArrayList<>();
+    }
+    /**
+     * 获取文件内所有的实现名称
+     * @param child 文件对象
+     * @return 实现类的全限定名称集合
+     */
     private static List<String> getImplNames(File child) {
         try (
                 FileReader fileReader = new FileReader(child);
@@ -53,7 +106,7 @@ public class SpiHandler {
             List<String> implNames = new ArrayList<>();
             while (true) {
                 String line = bufferedReader.readLine();
-                if (line == null || "".equals(line)) {
+                if (line != null || !"".equals(line)) {
                     implNames.add(line);
                 }
                 return implNames;
@@ -63,11 +116,39 @@ public class SpiHandler {
         }
         return null;
     }
-
-    public static <T> T get(Class<T> clazz) {
+    /**
+     * 构建 clazz相关的缓存
+     * @param clazz 一个类clazz实例
+     */
+    private static void buildCache(Class<?> clazz) {
+        // 1.通过clazz获取与之匹配的实现名称建立缓存
         String name = clazz.getName();
-
-        return null;
+        List<String> implNames = SPI_CONTENT.get(name);
+        if(implNames == null || implNames.size() == 0){
+            return;
+        }
+        // 2.实例化所有的实现
+        List<ObjectWrapper<?>> impls = new ArrayList<>();
+        for (String implName : implNames) {
+            try {
+                // 首先进行分个
+                String[] codeAndTypeAndName = implName.split("-");
+                if(codeAndTypeAndName.length!=3){
+                    throw new SpiException("配置的spi文件不合法");
+                }
+                Byte code = Byte.valueOf(codeAndTypeAndName[0]);
+                String type = codeAndTypeAndName[1];
+                String implementName = codeAndTypeAndName[2];
+                Class<?> aClass = Class.forName(implementName);
+                Object impl = aClass.getConstructor().newInstance();
+                ObjectWrapper<?> objectWrapper = new ObjectWrapper<>(code,type,impl);
+                impls.add(objectWrapper);
+            } catch (ClassNotFoundException | InstantiationException | IllegalAccessException |
+                     InvocationTargetException | NoSuchMethodException e) {
+                log.error("实例化【{}】的实现时发生了异常",implName);
+            }
+        }
+        SPI_IMPLEMENT.put(clazz,impls);
     }
 
     public static void main(String[] args) {

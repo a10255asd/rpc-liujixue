@@ -1,10 +1,10 @@
 package com.liujixue.serialize;
 
+import com.liujixue.config.ObjectWrapper;
 import com.liujixue.serialize.impl.HessianSerializer;
 import com.liujixue.serialize.impl.JDKSerializer;
 import com.liujixue.serialize.impl.JSONSerializer;
 import lombok.extern.slf4j.Slf4j;
-
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -15,12 +15,12 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Slf4j
 public class SerializerFactory {
-    private final static ConcurrentHashMap<String,SerializerWrapper> SERIALIZER_CACHE = new ConcurrentHashMap<>(8);
-    private final static ConcurrentHashMap<Byte,SerializerWrapper> SERIALIZER_CACHE_CODE = new ConcurrentHashMap<>(8);
+    private final static ConcurrentHashMap<String, ObjectWrapper<Serializer>> SERIALIZER_CACHE = new ConcurrentHashMap<>(8);
+    private final static ConcurrentHashMap<Byte,ObjectWrapper<Serializer>> SERIALIZER_CACHE_CODE = new ConcurrentHashMap<>(8);
     static {
-        SerializerWrapper jdk = new SerializerWrapper((byte) 1, "jdk", new JDKSerializer());
-        SerializerWrapper json = new SerializerWrapper((byte) 2, "json", new JSONSerializer());
-        SerializerWrapper hessian = new SerializerWrapper((byte) 3, "hessian", new HessianSerializer());
+        ObjectWrapper<Serializer> jdk = new ObjectWrapper<Serializer>((byte) 1, "jdk", new JDKSerializer());
+        ObjectWrapper<Serializer> json = new ObjectWrapper<Serializer>((byte) 2, "json", new JSONSerializer());
+        ObjectWrapper<Serializer> hessian = new ObjectWrapper<Serializer>((byte) 3, "hessian", new HessianSerializer());
 
         SERIALIZER_CACHE.put("jdk",jdk);
         SERIALIZER_CACHE.put("json",json);
@@ -38,18 +38,27 @@ public class SerializerFactory {
      * @param serializeType 序列化的类型
      * @return SerializerWrapper
      */
-    public static SerializerWrapper getSerializer(String serializeType) {
+    public static ObjectWrapper<Serializer> getSerializer(String serializeType) {
         if(SERIALIZER_CACHE.get(serializeType) != null){
             return SERIALIZER_CACHE.get(serializeType);
         }
         log.error("未找到您配置的序列化方式【{}】使用默认jdk序列化方式",serializeType);
         return SERIALIZER_CACHE.get("jdk");
     }
-    public static SerializerWrapper getSerializer(byte serializeCode) {
+    public static ObjectWrapper<Serializer> getSerializer(byte serializeCode) {
         if(SERIALIZER_CACHE_CODE.get(serializeCode) != null){
             return SERIALIZER_CACHE_CODE.get(serializeCode);
         }
         log.error("未找到您配置的序列化方式类型【{}】使用默认jdk序列化方式",serializeCode);
         return SERIALIZER_CACHE_CODE.get((byte)1);
+    }
+
+    /**
+     * 向工厂中添加一个序列化包装类
+     * @param serializerObjectWrapper
+     */
+    public static void addSerializer(ObjectWrapper<Serializer> serializerObjectWrapper){
+        SERIALIZER_CACHE.put(serializerObjectWrapper.getName(), serializerObjectWrapper);
+        SERIALIZER_CACHE_CODE.put(serializerObjectWrapper.getCode(),serializerObjectWrapper);
     }
 }

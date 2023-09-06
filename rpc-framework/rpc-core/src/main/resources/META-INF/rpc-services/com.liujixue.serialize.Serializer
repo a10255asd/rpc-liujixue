@@ -1,0 +1,2 @@
+1-jdk-com.liujixue.serialize.impl.JDKSerializer
+3-hessian-com.liujixue.serialize.impl.HessianSerializer

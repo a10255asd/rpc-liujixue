@@ -7,11 +7,11 @@
 
     <!-- 二选一 -->
     <serializeType type="hessian"/>
-    <serializer class="com.liujixue.serialize.impl.HessianSerializer"/>
+    <serializer code="3" name="hessian" class="com.liujixue.serialize.impl.HessianSerializer"/>
     
     <!-- 二选一 -->
     <compressType type="gzip"/>
-    <compressor class="com.liujixue.compress.impl.GZIPCompressor"/>
+    <compressor code="1" name="gzip" class="com.liujixue.compress.impl.GZIPCompressor"/>
     
     <!-- 二选一 -->
     <loadBalancer class="com.liujixue.loadbalancer.impl.RoundRobinLoadBalancer"/>

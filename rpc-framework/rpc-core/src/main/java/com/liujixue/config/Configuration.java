@@ -11,16 +11,6 @@ import com.liujixue.serialize.Serializer;
 import com.liujixue.serialize.impl.JDKSerializer;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import org.w3c.dom.Document;
-import org.w3c.dom.Node;
-import org.xml.sax.SAXException;
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.xpath.*;
-import java.io.IOException;
-import java.io.InputStream;
-import java.lang.reflect.InvocationTargetException;
 
 /**
  * @Author LiuJixue
@@ -40,12 +30,9 @@ public class Configuration {
     // 配置信息 ---> 注册中心
     private RegistryConfig registryConfig = new RegistryConfig("zookeeper://101.42.50.241:2181");
     // 配置信息 ---> 序列化协议
-    private ProtocolConfig protocolConfig = new ProtocolConfig("jdk");
     private String serializeType = "jdk";
-    private Serializer serializer = new JDKSerializer();
     // 配置信息 ---> 压缩方式
     private String compressType = "gzip";
-    private Compressor compressor = new GZIPCompressor();
     // 配置信息 ---> ID 生成器
     private IdGenerator idGenerator = new IdGenerator(1, 2);
     // 配置信息 ---> 负载均衡策略
@@ -62,9 +49,8 @@ public class Configuration {
         xmlResolver.loadFromXml(this);
         // 4.编程配置项，RpcBootstrap提供
     }
-    /**
-     * 从配置文件读取配置信息,不实用dom4j，使用原生api
-     * @param configuration 配置实例
-     */
+    public static void main(String[] args) {
+        Configuration configuration = new Configuration();
+    }
 
 }

@@ -89,7 +89,7 @@ public class HeartbeatDetector {
                     } catch (InterruptedException | ExecutionException | TimeoutException e) {
                         // 一旦发生问题，需要优先重试
                         tryTimes--;
-                        log.error("和【{}】地址为【{}】的主机连接发生异常，正在进行第【{}】次重试", channel.remoteAddress(),3-tryTimes);
+                        log.error("和地址为【{}】的主机连接发生异常，正在进行第【{}】次重试", channel.remoteAddress(),3-tryTimes);
                         // 将是失效的地址移除服务列表
                         if(tryTimes == 0){
                             RpcBootstrap.CHANNEL_CACHE.remove(entry.getKey());

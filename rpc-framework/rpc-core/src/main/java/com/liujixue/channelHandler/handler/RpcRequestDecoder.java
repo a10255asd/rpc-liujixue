@@ -5,7 +5,6 @@ import com.liujixue.compress.CompressorFactory;
 import com.liujixue.enumeration.RequestType;
 import com.liujixue.serialize.Serializer;
 import com.liujixue.serialize.SerializerFactory;
-import com.liujixue.serialize.SerializerWrapper;
 import com.liujixue.transport.message.MessageFormatConstant;
 import com.liujixue.transport.message.RequestPayload;
 import com.liujixue.transport.message.RpcRequest;
@@ -99,10 +98,10 @@ public class RpcRequestDecoder extends LengthFieldBasedFrameDecoder {
         byteBuf.readBytes(payLoad);
         if(payLoad!= null && payLoad.length!= 0){
             //  解压缩
-            Compressor compressor = CompressorFactory.getCompressor(rpcRequest.getCompressType()).getCompressor();
+            Compressor compressor = CompressorFactory.getCompressor(rpcRequest.getCompressType()).getImpl();
             payLoad = compressor.decompress(payLoad);
             // 反序列化
-            Serializer serializer = SerializerFactory.getSerializer(serializeType).getSerializer();
+            Serializer serializer = SerializerFactory.getSerializer(serializeType).getImpl();
             RequestPayload requestPayload = serializer.deserialize(payLoad, RequestPayload.class);
             rpcRequest.setRequestPayload(requestPayload);
         }

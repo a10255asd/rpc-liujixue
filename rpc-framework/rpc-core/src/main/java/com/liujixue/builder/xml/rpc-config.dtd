@@ -33,6 +33,8 @@
                 >
         <!ELEMENT serializer EMPTY>
         <!ATTLIST serializer
+                code CDATA #REQUIRED
+                name CDATA #REQUIRED
                 class CDATA #REQUIRED
                 >
 
@@ -42,6 +44,8 @@
                 >
         <!ELEMENT compressor EMPTY>
         <!ATTLIST compressor
+                code CDATA #REQUIRED
+                name CDATA #REQUIRED
                 class CDATA #REQUIRED
                 >
 

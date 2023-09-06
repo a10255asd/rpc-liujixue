@@ -1,7 +1,13 @@
 package com.liujixue.config;
 
+import com.liujixue.compress.Compressor;
+import com.liujixue.compress.CompressorFactory;
 import com.liujixue.loadbalancer.LoadBalancer;
+import com.liujixue.serialize.Serializer;
+import com.liujixue.serialize.SerializerFactory;
 import com.liujixue.spi.SpiHandler;
+
+import java.util.List;
 
 /**
  * @Author LiuJixue
@@ -17,7 +23,21 @@ public class SpiResolver {
      */
     public void loadFromSpi(Configuration configuration) {
         // spi文件中配置了很多实现（自由定义，只能配置一个实现还是多个）
-        LoadBalancer loadBalancer = SpiHandler.get(LoadBalancer.class);
-        //configuration.setLoadBalancer();
+        List<ObjectWrapper<LoadBalancer>> loadBalancerWrappers = SpiHandler.getList(LoadBalancer.class);
+        // 将其放入工厂
+        if(loadBalancerWrappers != null && loadBalancerWrappers.size()>0){
+            configuration.setLoadBalancer(loadBalancerWrappers.get(0).getImpl());
+        }
+
+        List<ObjectWrapper<Compressor>> compressorObjectWrappers = SpiHandler.getList(Compressor.class);
+        if (compressorObjectWrappers!=null){
+            compressorObjectWrappers.forEach(CompressorFactory::addCompressor);
+        }
+
+        List<ObjectWrapper<Serializer>> serializerObjectWrappers = SpiHandler.getList(Serializer.class);
+        if (serializerObjectWrappers!=null){
+            serializerObjectWrappers.forEach(SerializerFactory::addSerializer);
+        }
+
     }
 }
