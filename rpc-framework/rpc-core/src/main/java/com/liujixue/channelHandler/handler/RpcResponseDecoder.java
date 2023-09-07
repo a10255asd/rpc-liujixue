@@ -104,7 +104,6 @@ public class RpcResponseDecoder extends LengthFieldBasedFrameDecoder {
             Object body = serializer.deserialize(payLoad, Object.class);
             rpcResponse.setBody(body);
         }
-
         if (log.isDebugEnabled()) {
             log.debug("响应【{}】已在调用端完成解码工作",rpcResponse.getRequestId());
         }

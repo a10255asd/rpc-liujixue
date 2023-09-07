@@ -28,13 +28,13 @@ public class ConsumerApplication {
         // 获取一个代理对象
         HelloRpc helloRpc = reference.get();
         while (true){
-            try {
-                Thread.sleep(10000);
-                System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-            for (int i = 0; i < 5; i++) {
+//            try {
+//                Thread.sleep(10000);
+//                System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+//            } catch (InterruptedException e) {
+//                throw new RuntimeException(e);
+//            }
+            for (int i = 0; i < 499; i++) {
                 String sayHi = helloRpc.sayHi("你好");
                 log.info("sayHi------->{}",sayHi);
             }

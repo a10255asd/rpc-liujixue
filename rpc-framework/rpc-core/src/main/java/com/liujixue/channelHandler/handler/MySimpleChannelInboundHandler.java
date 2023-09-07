@@ -1,12 +1,16 @@
 package com.liujixue.channelHandler.handler;
 
 import com.liujixue.RpcBootstrap;
+import com.liujixue.enumeration.ResponseCode;
+import com.liujixue.exceptions.ResponseException;
+import com.liujixue.protection.CircuitBreaker;
 import com.liujixue.transport.message.RpcResponse;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import lombok.extern.slf4j.Slf4j;
 
+import java.net.SocketAddress;
 import java.nio.charset.Charset;
 import java.util.concurrent.CompletableFuture;
 
@@ -21,16 +25,35 @@ import java.util.concurrent.CompletableFuture;
 public class MySimpleChannelInboundHandler extends SimpleChannelInboundHandler<RpcResponse> {
     @Override
     protected void channelRead0(ChannelHandlerContext channelHandlerContext, RpcResponse rpcResponse) throws Exception {
-
-            // 服务提供方，给予的结果
-            Object returnValue = rpcResponse.getBody();
-            //TODO 需要针对 code 做处理
-        returnValue = returnValue == null ? new Object() : returnValue;
         // 从全局的挂起的请求中寻找与之匹配的待处理的 CompletableFuture
         CompletableFuture<Object> completableFuture = RpcBootstrap.PADDING_REQUEST.get(rpcResponse.getRequestId());
-        completableFuture.complete(returnValue);
-        if (log.isDebugEnabled()) {
-            log.debug("已寻找到编号为【{}】的completableFuture,处理响应结果",rpcResponse.getRequestId());
+        SocketAddress socketAddress = channelHandlerContext.channel().remoteAddress();
+        CircuitBreaker circuitBreaker = RpcBootstrap.getInstance().getConfiguration().getEveryIpCircuitBreaker().get(socketAddress);
+        byte code = rpcResponse.getCode();
+        if(code == ResponseCode.FAIL.getCode()){
+            circuitBreaker.recordErrorRequest();
+            completableFuture.complete(null);
+            log.error("当前id为【{}】的请求返回错误的结果，响应码【{}】",rpcResponse.getRequestId(),rpcResponse.getCode());
+            throw new ResponseException(code,ResponseCode.FAIL.getDesc());
+        }else if(code == ResponseCode.RATE_LIMIT.getCode()){
+            circuitBreaker.recordErrorRequest();
+            completableFuture.complete(null);
+            log.error("当前id为【{}】的请求被限流，响应码【{}】",rpcResponse.getRequestId(),rpcResponse.getCode());
+            throw new ResponseException(code,ResponseCode.FAIL.getDesc());
+        } else if (code == ResponseCode.RESOURCE_NOT_FOUND.getCode()) {
+            circuitBreaker.recordErrorRequest();
+            completableFuture.complete(null);
+            log.error("当前id为【{}】的请求未找到目标资源，响应码【{}】",rpcResponse.getRequestId(),rpcResponse.getCode());
+            throw new ResponseException(code,ResponseCode.FAIL.getDesc());
+        } else if (code == ResponseCode.SUCCESS.getCode()) {
+            // 服务提供方，给予的结果
+            Object returnValue = rpcResponse.getBody();
+            completableFuture.complete(returnValue);
+            if (log.isDebugEnabled()) {
+                log.debug("已寻找到编号为【{}】的completableFuture,处理响应结果", rpcResponse.getRequestId());
+            }
+
         }
+
     }
 }

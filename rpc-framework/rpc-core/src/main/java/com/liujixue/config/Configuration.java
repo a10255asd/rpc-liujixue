@@ -7,10 +7,18 @@ import com.liujixue.compress.impl.GZIPCompressor;
 import com.liujixue.discovery.RegistryConfig;
 import com.liujixue.loadbalancer.LoadBalancer;
 import com.liujixue.loadbalancer.impl.RoundRobinLoadBalancer;
+import com.liujixue.protection.CircuitBreaker;
+import com.liujixue.protection.RateLimiter;
+import com.liujixue.protection.TokenBuketRateLimiter;
 import com.liujixue.serialize.Serializer;
 import com.liujixue.serialize.impl.JDKSerializer;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * @Author LiuJixue
@@ -37,7 +45,10 @@ public class Configuration {
     private IdGenerator idGenerator = new IdGenerator(1, 2);
     // 配置信息 ---> 负载均衡策略
     private LoadBalancer loadBalancer = new RoundRobinLoadBalancer();
-
+    // 为每一个ip配置一个限流器
+    private Map<SocketAddress, RateLimiter> everyIpRateLimiter = new ConcurrentHashMap<>(16);
+    // 为每一个 ip 配置一个断路器
+    private final Map<SocketAddress, CircuitBreaker> everyIpCircuitBreaker = new ConcurrentHashMap<>(16);
     // 读取 xml
     public Configuration() {
         // 1.成员变量的默认配置项
