@@ -52,7 +52,11 @@ public class MySimpleChannelInboundHandler extends SimpleChannelInboundHandler<R
             if (log.isDebugEnabled()) {
                 log.debug("已寻找到编号为【{}】的completableFuture,处理响应结果", rpcResponse.getRequestId());
             }
-
+        }else if (code == ResponseCode.SUCCESS_HEART_BEAT.getCode()){
+            if (log.isDebugEnabled()) {
+                log.debug("已寻找到编号为【{}】的completableFuture,处理心跳检测", rpcResponse.getRequestId());
+            }
+            completableFuture.complete(null);
         }
 
     }

@@ -12,6 +12,7 @@ import com.liujixue.protection.RateLimiter;
 import com.liujixue.protection.TokenBuketRateLimiter;
 import com.liujixue.serialize.Serializer;
 import com.liujixue.serialize.impl.JDKSerializer;
+import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
@@ -30,11 +31,14 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Data
 @Slf4j
+@Builder
 public class Configuration {
     // 配置信息 ---> 端口号
     private int port = 8089;
     // 配置信息 ---> 应用程序的名字
     private String appName = "default";
+    // 分组信息
+    private String group = "default";
     // 配置信息 ---> 注册中心
     private RegistryConfig registryConfig = new RegistryConfig("zookeeper://101.42.50.241:2181");
     // 配置信息 ---> 序列化协议

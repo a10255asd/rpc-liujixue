@@ -46,10 +46,12 @@ public class RpcConsumerInvocationHandler implements InvocationHandler {
     // 此处需要一个注册中心，和一个接口
     private final Registry registry;
     private final Class<?> interfaceRef;
+    private String group;
 
-    public RpcConsumerInvocationHandler(Registry registry, Class<?> interfaceRef) {
+    public RpcConsumerInvocationHandler(Registry registry, Class<?> interfaceRef,String group) {
         this.registry = registry;
         this.interfaceRef = interfaceRef;
+        this.group = group;
     }
 
     /**
@@ -105,7 +107,7 @@ public class RpcConsumerInvocationHandler implements InvocationHandler {
             // 将请求存入本地线程，需要在合适的时候调用 remove 方法
             RpcBootstrap.REQUEST_THREAD_LOCAL.set(rpcRequest);
             // 2. 从注册中心拉取服务列表，并通过客户端负载均衡寻找一个可用的服务
-            InetSocketAddress address = RpcBootstrap.getInstance().getConfiguration().getLoadBalancer().selectServerAddress(interfaceRef.getName());
+            InetSocketAddress address = RpcBootstrap.getInstance().getConfiguration().getLoadBalancer().selectServerAddress(interfaceRef.getName(),group);
             if (log.isDebugEnabled()) {
                 log.debug("服务调用方发现了服务【{}】的可用主机【{}】", interfaceRef.getName(), address);
             }
@@ -119,7 +121,7 @@ public class RpcConsumerInvocationHandler implements InvocationHandler {
 
             try {
                 // 如果断路器是打开的，直接返回
-                if (circuitBreaker.isBreak()) {
+                if (rpcRequest.getRequestType()!= RequestType.HEARTBEAT.getId() && circuitBreaker.isBreak()) {
                     // 定期打开
                     Timer timer = new Timer();
                     timer.schedule(new TimerTask() {

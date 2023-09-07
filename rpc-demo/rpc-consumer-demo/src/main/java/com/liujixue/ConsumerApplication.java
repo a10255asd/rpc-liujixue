@@ -23,6 +23,7 @@ public class ConsumerApplication {
                 .registry(new RegistryConfig("zookeeper://101.42.50.241:2181"))
                 .serialize("jdk")
                 .compress("gzip")
+                .group("primary")
                 .reference(reference);
         System.out.println("------------------------------------------------------------");
         // 获取一个代理对象

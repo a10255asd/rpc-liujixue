@@ -14,13 +14,13 @@ public abstract class AbstractLoadBalancer implements LoadBalancer{
     // 一个服务会匹配一个 selector
     private Map<String,Selector> cache = new ConcurrentHashMap<>(8);
     @Override
-    public InetSocketAddress selectServerAddress(String serviceName) {
+    public InetSocketAddress selectServerAddress(String serviceName,String group) {
         // 1. 优先从缓存中获取一个选择器
         Selector selector = cache.get(serviceName);
         // 如果没有就需要为这个service创建一个selector，并放到缓存中
         if(selector == null){
             // 对于这个负载均衡器，内部应该维护服务列表作为缓存
-            List<InetSocketAddress> serviceList = RpcBootstrap.getInstance().getConfiguration().getRegistryConfig().getRegistry().lookup(serviceName);
+            List<InetSocketAddress> serviceList = RpcBootstrap.getInstance().getConfiguration().getRegistryConfig().getRegistry().lookup(serviceName,group);
             // 提供一些算法 负责
             selector = getSelector(serviceList);
             // 将 selector 放入缓存当中

@@ -10,7 +10,7 @@ import com.liujixue.annotation.RpcApi;
  * @PackageName:com.liujixue.impl
  * @ClassName: HelloRpcImpl
  */
-@RpcApi
+@RpcApi(group = "primary")
 public class HelloRpcImpl implements HelloRpc {
     @Override
     public String sayHi(String msg) {

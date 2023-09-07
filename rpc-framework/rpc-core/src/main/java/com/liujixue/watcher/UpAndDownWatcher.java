@@ -32,7 +32,8 @@ public class UpAndDownWatcher implements Watcher {
             // 重新拉取服务列表
             String serviceName = getServiceName(event.getPath());
             Registry registry = RpcBootstrap.getInstance().getConfiguration().getRegistryConfig().getRegistry();
-            List<InetSocketAddress> addresses = registry.lookup(serviceName);
+            List<InetSocketAddress> addresses = registry.lookup(serviceName,
+                    RpcBootstrap.getInstance().getConfiguration().getGroup());
             // 处理新增的节点
             for (InetSocketAddress address : addresses) {
                 // 新增的节点会在 addresses 中，不再 cache 中
