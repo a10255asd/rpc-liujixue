@@ -5,6 +5,7 @@ import com.liujixue.channelHandler.handler.MethodCallHandler;
 import com.liujixue.channelHandler.handler.RpcRequestDecoder;
 import com.liujixue.channelHandler.handler.RpcResponseEncoder;
 import com.liujixue.core.HeartbeatDetector;
+import com.liujixue.core.RpcShutDownHook;
 import com.liujixue.discovery.RegistryConfig;
 import com.liujixue.loadbalancer.LoadBalancer;
 import com.liujixue.transport.message.RpcRequest;
@@ -124,6 +125,8 @@ public class RpcBootstrap {
      * 启动 netty 服务
      */
     public void start() {
+        // 注册关闭应用程序的一个钩子函数
+        Runtime.getRuntime().addShutdownHook(new RpcShutDownHook());
         //1. 创建 EventLoopGroup
         // boss 只负责处理请求，之后会将请求分发给worker
         NioEventLoopGroup boss = new NioEventLoopGroup(2);

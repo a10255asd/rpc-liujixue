@@ -31,7 +31,6 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Data
 @Slf4j
-@Builder
 public class Configuration {
     // 配置信息 ---> 端口号
     private int port = 8089;

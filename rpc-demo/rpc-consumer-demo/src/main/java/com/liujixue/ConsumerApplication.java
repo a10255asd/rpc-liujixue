@@ -3,6 +3,8 @@ package com.liujixue;
 import com.liujixue.discovery.RegistryConfig;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.concurrent.locks.ReentrantLock;
+
 
 /**
  * @Author LiuJixue
@@ -39,7 +41,8 @@ public class ConsumerApplication {
                 String sayHi = helloRpc.sayHi("你好");
                 log.info("sayHi------->{}",sayHi);
             }
+            }
         }
-        }
+
 
 }

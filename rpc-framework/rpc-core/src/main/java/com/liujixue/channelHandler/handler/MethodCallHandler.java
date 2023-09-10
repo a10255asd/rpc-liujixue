@@ -2,6 +2,7 @@ package com.liujixue.channelHandler.handler;
 
 import com.liujixue.RpcBootstrap;
 import com.liujixue.ServiceConfig;
+import com.liujixue.core.ShutDownHolder;
 import com.liujixue.enumeration.RequestType;
 import com.liujixue.enumeration.ResponseCode;
 import com.liujixue.protection.RateLimiter;
@@ -36,8 +37,15 @@ public class MethodCallHandler extends SimpleChannelInboundHandler<RpcRequest> {
         rpcResponse.setRequestId(rpcRequest.getRequestId());
         rpcResponse.setCompressType(rpcRequest.getCompressType());
         rpcResponse.setSerializeType(rpcRequest.getSerializeType());
-        // 2. 完成限流相关的操作
         Channel channel = channelHandlerContext.channel();
+        // 查看关闭的挡板是否打开,如果打开，直接返回一个错误的响应
+        if(ShutDownHolder.BAFFLE.get()){
+            rpcResponse.setCode(ResponseCode.BE_CLOSING.getCode());
+            channel.writeAndFlush(rpcResponse);
+        }
+        // 计数器加一
+        ShutDownHolder.REQUEST_COUNTER.increment();
+        // 2. 完成限流相关的操作
         SocketAddress socketAddress = channel.remoteAddress();
         Map<SocketAddress, RateLimiter> everyIpRateLimiter = RpcBootstrap.getInstance().getConfiguration().getEveryIpRateLimiter();
         RateLimiter rateLimiter = everyIpRateLimiter.get(socketAddress);
@@ -46,15 +54,18 @@ public class MethodCallHandler extends SimpleChannelInboundHandler<RpcRequest> {
             everyIpRateLimiter.put(socketAddress,rateLimiter);
         }
         boolean allowRequest = rateLimiter.allowRequest();
+        // 不处理请求的逻辑
         // 限流
         if (!allowRequest){
             // 需要封装响应，并且返回
             rpcResponse.setCode(ResponseCode.RATE_LIMIT.getCode());
         } else if(rpcRequest.getRequestType() == RequestType.HEARTBEAT.getId()){
             // 需要封装响应，并且返回
+            // 心跳处理
             rpcResponse.setCode(ResponseCode.SUCCESS_HEART_BEAT.getCode());
         }else {
             //--------------------------- 具体调用过程--------------------------
+            // 正常调用
             // 3. 获取负载内容
             RequestPayload requestPayload = rpcRequest.getRequestPayload();
 
@@ -74,6 +85,8 @@ public class MethodCallHandler extends SimpleChannelInboundHandler<RpcRequest> {
         }
         // 5. 写出响应
         channel.writeAndFlush(rpcResponse);
+        // 计数器减一
+        ShutDownHolder.REQUEST_COUNTER.decrement();
     }
 
     private Object callTargetMethod(RequestPayload requestPayload) {
